@@ -1,0 +1,69 @@
+name: naija_go
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.8.1 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  http: ^1.5.0
+  shared_preferences: ^2.2.3
+  device_info_plus: ^11.5.0
+  image_picker: ^1.1.2
+  provider: ^6.1.2
+  ionicons: ^0.2.2
+  intl: ^0.18.1
+  flutter_animate: ^4.5.2
+  url_launcher: ^6.3.2
+  flutter_dotenv: ^5.2.1
+  flutterwave_standard: ^1.0.7
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
+  uuid: ^4.4.0 
+  socket_io_client: ^2.0.3+1
+  file_picker: ^8.0.0+1
+  cached_network_image: ^3.2.3
+  fl_chart: ^0.70.0
+  lottie: ^2.2.0
+  shimmer: ^3.0.0
+  crypto: ^3.0.3
+  local_auth: ^2.1.8 
+  flutter_secure_storage: ^8.1.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0     
+  flutter_launcher_icons: ^0.13.1   # 👈 Added for app icon
+
+flutter:
+  uses-material-design: true
+
+  assets:
+      - assets/categories/
+      - assets/bg-erased_logo.png
+      - assets/naijago-flier1.jpg
+      - assets/naijago-flier2.jpg
+      - assets/naijago-flier3.jpg
+      - assets/ads1.png
+      - assets/ads2.png
+      - assets/ads3.png
+      - assets/ads4.png
+      - assets/ads5.png
+      - assets/prod_flier1.jpg
+      - assets/prod_flier2.jpg
+      - assets/prod_flier3.jpg
+      - assets/app_icon.jpg      # 👈 Add your app icon here
+      - assets/naijago-9.jpg # 👈 Add your splash screen image here
+      - .env
+
+# 👇 App Icon Config
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/app_image.jpg"
+  min_sdk_android: 21
