@@ -16,78 +16,55 @@ class _AiDiagnosisScreenState extends State<AiDiagnosisScreen> {
   bool _isLoading = false;
 
   final Color primaryColor = const Color(0xFF001F54); // Royal deep blue navy
-  final Color secondaryColor = const Color(0xFF0D0D0D); // Deep black
+  final Color secondaryColor = const Color.fromARGB(255, 69, 39, 39); // Deep black
   final Color accentColor = Colors.white;
 
   Future<void> _getDiagnosis() async {
-    final inputText = _controller.text.trim();
+  final inputText = _controller.text.trim();
 
-    if (inputText.isEmpty) {
-      setState(() {
-        _diagnosis = "Please enter some symptoms before requesting a diagnosis.";
-      });
-      return;
-    }
-
+  if (inputText.isEmpty) {
     setState(() {
-      _isLoading = true;
-      _diagnosis = '';
+      _diagnosis = "Please enter some symptoms before requesting a diagnosis.";
     });
-
-    final apiKey = dotenv.env['OPENAI_API_KEY'];
-    if (apiKey == null || apiKey.isEmpty) {
-      setState(() {
-        _isLoading = false;
-        _diagnosis = 'OpenAI API key not found. Check your .env file.';
-      });
-      return;
-    }
-
-    try {
-      final prompt = "I have the following symptoms: $inputText. "
-          "Give me a likely diagnosis or advice, but make it clear this isn't a substitute for seeing a doctor.";
-
-      final response = await http.post(
-        Uri.parse('https://api.openai.com/v1/chat/completions'),
-        headers: {
-          'Authorization': 'Bearer $apiKey',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'model': 'gpt-3.5-turbo',
-          'messages': [
-            {'role': 'system', 'content': 'You are a helpful medical assistant.'},
-            {'role': 'user', 'content': prompt},
-          ],
-          'max_tokens': 300,
-          'temperature': 0.7,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body);
-        final message = body['choices']?[0]?['message']?['content'];
-
-        setState(() {
-          _diagnosis = message?.trim() ?? 'No diagnosis returned.';
-        });
-      } else {
-        setState(() {
-          _diagnosis = 'Failed to fetch diagnosis. (${response.statusCode})\n'
-              'Reason: ${response.reasonPhrase}\n'
-              'Details: ${response.body}';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _diagnosis = 'An error occurred: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    return;
   }
+
+  setState(() {
+    _isLoading = true;
+    _diagnosis = '';
+  });
+
+  try {
+    // 👇 Replace this with your actual backend URL
+    const backendUrl = "https://naijago-backend.onrender.com/api/chatbot";
+
+    final response = await http.post(
+      Uri.parse(backendUrl),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'message': inputText}),
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      setState(() {
+        _diagnosis = body['reply'] ?? 'No response from AI.';
+      });
+    } else {
+      setState(() {
+        _diagnosis =
+            'Failed to fetch response: ${response.statusCode}\n${response.body}';
+      });
+    }
+  } catch (e) {
+    setState(() {
+      _diagnosis = 'Error: $e';
+    });
+  } finally {
+    setState(() {
+      _isLoading = false;
+    });
+  }
+}
 
   @override
   Widget build(BuildContext context) {

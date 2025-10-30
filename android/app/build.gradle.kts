@@ -25,7 +25,7 @@ android {
         applicationId = "com.naijago.appOne"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 10
+        versionCode = 11
         versionName = "1.0.6"
     }
 

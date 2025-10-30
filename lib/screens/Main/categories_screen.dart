@@ -5,6 +5,7 @@ import 'package:ionicons/ionicons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'CategoryProductsScreen.dart';
 import 'ai_diagnosis_screen.dart';
+import 'chat_screen.dart';
 
 class CategoryItem {
   final String name;
@@ -146,67 +147,91 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   }
 
   void _handleSpecialCategories(BuildContext context, CategoryItem category) {
-    if (category.name == 'Pharmacy') {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Need Quick Help?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton.icon(
-                icon: const Icon(Icons.smart_toy),
-                label: const Text('Diagnose with AI'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AiDiagnosisScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              const Text('Or talk to a doctor on WhatsApp:'),
-              const SizedBox(height: 10),
-              ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: const Text('Pharmacist Stanley Synore'),
-                subtitle: const Text('Medical Practitioner'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.chat),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _launchWhatsApp('2347039507424', 'Hello Please, I need medical advice.');
-                  },
-                ),
-              ),
-              ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.person)),
-                title: const Text('Pharmacist Tobechi'),
-                subtitle: const Text('Pharmacist'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.chat),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _launchWhatsApp('2349031225275', 'Hello Please, I need medication advice.');
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    } else {
-      final sectionName =
-          categorySections.entries.firstWhere((e) => e.value.contains(category)).key;
+  if (category.name == 'Pharmacy') {
+    // ✅ Navigate directly to ChatScreen (in-app chat)
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ChatScreen(),
+      ),
+    );
+    return;
+  } else {
+    final sectionName =
+        categorySections.entries.firstWhere((e) => e.value.contains(category)).key;
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CategoryProductsScreen(category: "$sectionName > ${category.name}"),
-        ),
-      );
-    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            CategoryProductsScreen(category: "$sectionName > ${category.name}"),
+      ),
+    );
   }
+}
+
+
+  // void _handleSpecialCategories(BuildContext context, CategoryItem category) {
+  //   if (category.name == 'Pharmacy') {
+  //     showDialog(
+  //       context: context,
+  //       builder: (_) => AlertDialog(
+  //         title: const Text('Need Quick Help?'),
+  //         content: Column(
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: [
+  //             ElevatedButton.icon(
+  //               icon: const Icon(Icons.smart_toy),
+  //               label: const Text('Diagnose with AI'),
+  //               onPressed: () {
+  //                 Navigator.of(context).pop();
+  //                 Navigator.of(context).push(
+  //                   MaterialPageRoute(builder: (_) => const AiDiagnosisScreen()),
+  //                 );
+  //               },
+  //             ),
+  //             const SizedBox(height: 16),
+  //             const Text('Or talk to a doctor on WhatsApp:'),
+  //             const SizedBox(height: 10),
+  //             ListTile(
+  //               leading: const CircleAvatar(child: Icon(Icons.person)),
+  //               title: const Text('Pharmacist Stanley Synore'),
+  //               subtitle: const Text('Medical Practitioner'),
+  //               trailing: IconButton(
+  //                 icon: const Icon(Icons.chat),
+  //                 onPressed: () {
+  //                   Navigator.of(context).pop();
+  //                   _launchWhatsApp('2347039507424', 'Hello Please, I need medical advice.');
+  //                 },
+  //               ),
+  //             ),
+  //             ListTile(
+  //               leading: const CircleAvatar(child: Icon(Icons.person)),
+  //               title: const Text('Pharmacist Tobechi'),
+  //               subtitle: const Text('Pharmacist'),
+  //               trailing: IconButton(
+  //                 icon: const Icon(Icons.chat),
+  //                 onPressed: () {
+  //                   Navigator.of(context).pop();
+  //                   _launchWhatsApp('2349031225275', 'Hello Please, I need medication advice.');
+  //                 },
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     );
+  //   } else {
+  //     final sectionName =
+  //         categorySections.entries.firstWhere((e) => e.value.contains(category)).key;
+
+  //     Navigator.push(
+  //       context,
+  //       MaterialPageRoute(
+  //         builder: (_) => CategoryProductsScreen(category: "$sectionName > ${category.name}"),
+  //       ),
+  //     );
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {

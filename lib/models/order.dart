@@ -2,16 +2,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutterwave_standard/models/responses/charge_response.dart';
 
-// NOTE: We need the Address model (from address.dart) and CartItem (from cart_provider.dart)
-// for this model to function correctly, assuming they are in your project.
 import 'address.dart';
-// import 'cart_provider.dart'; // Assuming CartItem is defined here, or use OrderItem directly
+import 'order_item.dart'; // <-- Now imported and used
 
 // This represents the structure of an Order sent to and received from the API.
 class Order {
   final String id;
   final String userId; // Maps to 'user' in Mongoose schema
-  final List<dynamic> orderItems; // List of items in the order (can be CartItem or OrderItem)
+  final List<OrderItem> orderItems; // Now strongly typed as List<OrderItem>
   final Address shippingAddress; // MUST be the Address object, not a String
 
   // Price Details (Required by Mongoose Order.js)
@@ -61,11 +59,15 @@ class Order {
     // We safely parse it into an Address model.
     final addressJson = json['shippingAddress'] as Map<String, dynamic>?;
 
+    // --- FIX: Map the dynamic list of order items to OrderItem objects ---
+    final List<OrderItem> items = (json['orderItems'] as List<dynamic>? ?? [])
+        .map((itemJson) => OrderItem.fromJson(itemJson as Map<String, dynamic>))
+        .toList();
+
     return Order(
       id: json['_id'] ?? '',
       userId: json['user'] ?? '',
-      // Parsing logic for order items here... (using a generic List<dynamic> for flexibility)
-      orderItems: json['orderItems'] as List<dynamic>? ?? [],
+      orderItems: items, // Using the correctly parsed list
       
       // We must reconstruct the full Address object from the response
       shippingAddress: addressJson != null
@@ -135,15 +137,8 @@ class Order {
       'serviceFee': serviceFee,
       'deliveryDistanceKm': deliveryDistanceKm,
       
-      // orderItems must be simplified to an array of product data needed for Mongoose OrderItemSchema
-      'orderItems': orderItems.map((item) {
-        // Assuming your items have product ID, quantity, price, etc.
-        if (item is Map<String, dynamic>) {
-            return item; // If it's already a map (e.g. from CartItem.toJson())
-        }
-        // Fallback for non-map items (you must ensure your OrderItem/CartItem has a toJson() method)
-        return {};
-      }).toList(),
+      // Map to the backend-friendly format using OrderItem.toApiJson()
+      'orderItems': orderItems.map((item) => item.toApiJson()).toList(),
       
       'shippingAddress': shippingDetails,
       'userLocation': userLocationDetails,
@@ -161,6 +156,7 @@ class Order {
     };
   }
 }
+
 
 
 
