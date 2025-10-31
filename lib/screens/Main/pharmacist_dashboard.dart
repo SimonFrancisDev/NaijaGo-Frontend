@@ -6,6 +6,10 @@ import 'package:intl/intl.dart'; // Add to pubspec.yaml if needed for formatting
 import 'package:shared_preferences/shared_preferences.dart';
 
 
+// Define your requested colors
+const Color deepNavyBlue = Color(0xFF03024C); // Primary App Color
+const Color white = Colors.white;             // Secondary App Color
+
 // Placeholder for fetching the PHARMACIST's token.
 // IMPORTANT: This MUST be a JWT for a user with the role: 'pharmacist'.
 Future<String?> _getPharmacistAuthToken() async {
@@ -151,7 +155,7 @@ class _PharmacistDashboardState extends State<PharmacistDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pharmacist Queue 🧑‍⚕️'),
-        backgroundColor: Colors.blueGrey,
+        backgroundColor: deepNavyBlue,
         actions: [
           IconButton(
             icon: Icon(_isOnline ? Icons.signal_cellular_alt : Icons.signal_cellular_off, 
