@@ -54,7 +54,7 @@ workflows:
               key_id: APP_STORE_KEY_ID
               issuer_id: APP_STORE_ISSUER_ID
               private_key: API_PRIVATE_KEY
-            distribution_type: Production
+            distribution_type: Release
             submit_to_app_store: true
             teams:
               - "Destiny Oseremen"
