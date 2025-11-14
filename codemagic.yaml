@@ -2,50 +2,47 @@ workflows:
   ios-release:
     name: iOS Release Build
     instance_type: mac_mini_m1
-    
+
     environment:
       flutter: stable
-      groups:
-        - app_store_connect_credentials # Confirmed
       vars:
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
         XCODE_SCHEME: "Runner"
-        BUNDLE_ID: "com.naijago.appOne" # Confirmed
-        
+        BUNDLE_ID: "com.naijago.appOne"
+
     scripts:
       - name: Flutter Pub Get
         script: |
           flutter pub get
-          
-      # 1. Fetch Signing Files using the API Key
+
       - name: Fetch iOS Signing Files
         script: |
           app-store-connect fetch-signing-files \
             --bundle-id $BUNDLE_ID \
             --platform IOS \
             --type IOS_APP_STORE \
+            --api-key-id $APP_STORE_CONNECT_KEY_IDENTIFIER \
+            --issuer-id $APP_STORE_CONNECT_ISSUER_ID \
+            --private-key "$APP_STORE_CONNECT_PRIVATE_KEY" \
             --create
-            
-      # 2. Inject fetched profiles/certs into the Xcode project
+
       - name: Set up code signing settings
         script: |
           xcode-project use-profiles
-          
-      # 3. Build the IPA referencing the generated export options
+
       - name: Build iOS IPA
         script: |
           flutter build ipa --release \
             --export-options-plist="/Users/builder/export_options.plist"
-            
+
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcode_temp_archive/**/*.dSYMs
 
     publishing:
       app_store_connect:
-        api_key: app_store_connect_credentials # Confirmed
+        api_key: $APP_STORE_CONNECT_KEY_IDENTIFIER
         distribution_type: Production
-        submit_to_app_store: false 
-        # Crucially, this is set to your Individual Account Holder name:
+        submit_to_app_store: true
         teams:
           - "Destiny Oseremen"
