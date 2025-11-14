@@ -49,16 +49,12 @@ workflows:
     publishing:
           app_store_connect:
             api_key:
-              # Use the environment variable names as defined in the Codemagic UI
-              # Double-check: Is the KEY ID variable in the UI named exactly 'APP_STORE_KEY_ID'?
-              key_id: $APP_STORE_KEY_ID
-              # Double-check: Is the ISSUER ID variable in the UI named exactly 'APP_STORE_ISSUER_ID'?
-              issuer_id: $APP_STORE_ISSUER_ID
-              # Double-check: Is the PRIVATE KEY variable in the UI named exactly 'API_PRIVATE_KEY'?
-              private_key: $API_PRIVATE_KEY
-              
+              # CRITICAL FIX: Try referencing the secure variables WITHOUT the $ prefix.
+              # The YAML parser sometimes requires this specific format for the publishing block.
+              key_id: APP_STORE_KEY_ID
+              issuer_id: APP_STORE_ISSUER_ID
+              private_key: API_PRIVATE_KEY
             distribution_type: Production
             submit_to_app_store: true
-            # Make sure the team name is the EXACT name of your Apple Developer Program team
             teams:
               - "Destiny Oseremen"
