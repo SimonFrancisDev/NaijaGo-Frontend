@@ -23,9 +23,14 @@ workflows:
             --bundle-id $BUNDLE_ID \
             --platform IOS \
             --type IOS_APP_STORE \
-            --api-key-id $APP_STORE_CONNECT_KEY_IDENTIFIER \
-            --issuer-id $APP_STORE_CONNECT_ISSUER_ID \
-            --private-key "$APP_STORE_CONNECT_PRIVATE_KEY" \
+            --api-key-id KXZDQK294F \
+            --issuer-id 30f4cc52-bb37-459d-bb18-e0d947057cd9 \
+            --private-key "-----BEGIN PRIVATE KEY-----
+MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgG2sFiYwyzvL4qe9l
+pezsi2qNGedqw1+aPpbCCsmUY/qgCgYIKoZIzj0DAQehRANCAARmYHVShd4UNMcK
+Lfp3CThKGtdTYUqvXWxrK0MBcwF4GS4kSBF9pbmhPS8WBAYCiEdPVYA7bbr7K6FX
+5XkcwEhv
+-----END PRIVATE KEY-----" \
             --create
 
       # 3️⃣ Apply the fetched signing certificates and profiles
@@ -46,9 +51,14 @@ workflows:
     publishing:
       app_store_connect:
         api_key:
-          key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-          issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-          private_key: $APP_STORE_CONNECT_PRIVATE_KEY
+          key_id: KXZDQK294F
+          issuer_id: 30f4cc52-bb37-459d-bb18-e0d947057cd9
+          private_key: "-----BEGIN PRIVATE KEY-----
+MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgG2sFiYwyzvL4qe9l
+pezsi2qNGedqw1+aPpbCCsmUY/qgCgYIKoZIzj0DAQehRANCAARmYHVShd4UNMcK
+Lfp3CThKGtdTYUqvXWxrK0MBcwF4GS4kSBF9pbmhPS8WBAYCiEdPVYA7bbr7K6FX
+5XkcwEhv
+-----END PRIVATE KEY-----"
         distribution_type: Production
         submit_to_app_store: true
         teams:
