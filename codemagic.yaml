@@ -7,11 +7,18 @@ workflows:
       flutter: stable
       # Reference the group you created in the Codemagic UI
       groups:
-        - app_store_credentials
+        - app_store_credentials 
       vars:
         XCODE_WORKSPACE: "ios/Runner.xcworkspace"
         XCODE_SCHEME: "Runner"
         BUNDLE_ID: "com.naijago.appOne"
+        
+        # CRITICAL FIX: Explicitly list the secret variables here 
+        # to ensure the publishing block validator can find them.
+        APP_STORE_KEY_ID: $APP_STORE_KEY_ID
+        APP_STORE_ISSUER_ID: $APP_STORE_ISSUER_ID
+        API_PRIVATE_KEY: $API_PRIVATE_KEY
+
 
     scripts:
       - name: Flutter Pub Get
@@ -28,8 +35,7 @@ workflows:
             --issuer-id $APP_STORE_ISSUER_ID \
             --private-key "$API_PRIVATE_KEY" \
             --create
-        # NOTE: The private key is now passed as an environment variable $API_PRIVATE_KEY
-        # and wrapped in quotes to handle the multi-line content.
+        # NOTE: The $ prefix is correct inside the script block.
 
       - name: Set up code signing settings
         script: |
@@ -39,7 +45,6 @@ workflows:
       - name: Build iOS IPA
         script: |
           # Using the standard 'flutter build ipa' is sufficient here. 
-          # The code signing should be handled implicitly by the previous steps.
           flutter build ipa --release 
 
     artifacts:
@@ -47,14 +52,15 @@ workflows:
       - /tmp/xcode_temp_archive/**/*.dSYMs
 
     publishing:
-          app_store_connect:
-            api_key:
-              # CRITICAL FIX: Try referencing the secure variables WITHOUT the $ prefix.
-              # The YAML parser sometimes requires this specific format for the publishing block.
-              key_id: APP_STORE_KEY_ID
-              issuer_id: APP_STORE_ISSUER_ID
-              private_key: API_PRIVATE_KEY
-            distribution_type: Release
-            submit_to_app_store: true
-            teams:
-              - "Destiny Oseremen"
+      app_store_connect:
+        api_key:
+          # Using the $ prefix here is standard when variables are defined in the 'vars' block.
+          key_id: $APP_STORE_KEY_ID
+          issuer_id: $APP_STORE_ISSUER_ID
+          private_key: $API_PRIVATE_KEY
+        
+        # NOTE: The distribution type for the App Store is 'Production', not 'Release'.
+        distribution_type: Production
+        submit_to_app_store: true
+        teams:
+          - "Destiny Oseremen"
