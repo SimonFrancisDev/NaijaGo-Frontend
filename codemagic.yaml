@@ -11,10 +11,12 @@ workflows:
         BUNDLE_ID: "com.naijago.appOne"
 
     scripts:
+      # 1️⃣ Get Flutter dependencies
       - name: Flutter Pub Get
         script: |
           flutter pub get
 
+      # 2️⃣ Fetch iOS signing files from App Store Connect
       - name: Fetch iOS Signing Files
         script: |
           app-store-connect fetch-signing-files \
@@ -26,10 +28,12 @@ workflows:
             --private-key "$APP_STORE_CONNECT_PRIVATE_KEY" \
             --create
 
+      # 3️⃣ Apply the fetched signing certificates and profiles
       - name: Set up code signing settings
         script: |
           xcode-project use-profiles
 
+      # 4️⃣ Build the IPA
       - name: Build iOS IPA
         script: |
           flutter build ipa --release \
@@ -41,7 +45,10 @@ workflows:
 
     publishing:
       app_store_connect:
-        api_key: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        api_key:
+          key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+          issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+          private_key: $APP_STORE_CONNECT_PRIVATE_KEY
         distribution_type: Production
         submit_to_app_store: true
         teams:
