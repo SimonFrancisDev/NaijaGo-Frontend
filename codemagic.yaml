@@ -8,9 +8,11 @@ workflows:
       xcode: latest
       groups:
         - app_store_connect   # contains your App Store Connect API variables
+      vars:
+        FLUTTER_BUILD_MODE: release
 
     scripts:
-      - name: Clean and Prepare Flutter Project 🚀
+      - name: Clean Flutter Project 🚀
         script: |
           echo "Cleaning Flutter project..."
           flutter clean
@@ -23,9 +25,10 @@ workflows:
           pod install
           cd ..
 
-      - name: Build iOS IPA
+      - name: Build iOS IPA for App Store
         script: |
-          flutter build ipa --release    # <--- removed --no-codesign
+          echo "Building IPA for App Store / TestFlight"
+          flutter build ipa --release --export-method app-store
 
     artifacts:
       - build/ios/ipa/*.ipa
