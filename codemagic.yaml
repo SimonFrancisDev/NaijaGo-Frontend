@@ -1,28 +1,36 @@
 workflows:
   flutter-ios-release:
-    name: Flutter iOS Release (Automatic Signing)
+    name: Flutter iOS Release (Cloud Signing)
     max_build_duration: 60
 
     environment:
       flutter: stable
       xcode: latest
       groups:
-        - app_store_connect   # contains APP_STORE_PRIVATE_KEY, KEY_ID, ISSUER_ID
+        - app_store_connect   # contains your App Store Connect API variables
 
     scripts:
-      - name: Install Dependencies
+      - name: Clean and Prepare Flutter Project 🚀
         script: |
-          echo "Running Flutter pub get..."
+          echo "Cleaning Flutter project..."
+          flutter clean
           flutter pub get
+
+      - name: iOS Pod Install
+        script: |
+          cd ios
+          rm -rf Pods Podfile.lock
+          pod install
+          cd ..
 
       - name: Build iOS IPA
         script: |
-          echo "Building iOS IPA with automatic signing..."
-          flutter build ipa --release
+          flutter build ipa --release --no-codesign
 
     artifacts:
       - build/ios/ipa/*.ipa
       - build/ios/Runner.app.dSYM.zip
+      - build/ios/archive/*.xcarchive
 
     publishing:
       app_store_connect:
