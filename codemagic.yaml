@@ -13,10 +13,6 @@ workflows:
       - name: Get Flutter dependencies
         script: flutter pub get
 
-      # Build Android APK/AAB
-      - name: Build Android AAB
-        script: flutter build appbundle --release
-
       # Build iOS release (Codemagic signs it after)
       - name: Build iOS release
         script: flutter build ios --release --no-codesign
