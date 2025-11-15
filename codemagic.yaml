@@ -5,21 +5,37 @@ workflows:
 
     environment:
       groups:
-        - app_store_connect  # contains APP_STORE_PRIVATE_KEY, KEY_ID, ISSUER_ID
+        - app_store_connect   # contains APP_STORE_PRIVATE_KEY, KEY_ID, ISSUER_ID
       flutter: stable
       xcode: latest
 
     scripts:
-      - name: Get Flutter dependencies
-        script: flutter pub get
+      - name: Aggressive iOS Cleanup and Pod Install 🚀
+        script: |
+          echo "Aggressively cleaning project caches..."
+          flutter clean
+          rm -rf ios/Pods/
+          rm -rf ~/Library/Caches/CocoaPods
+          rm -rf ios/.symlinks/
+          rm -rf $HOME/Library/Developer/Xcode/DerivedData/*
 
-      # Build iOS release (Codemagic signs it after)
-      - name: Build iOS release
-        script: flutter build ios --release --no-codesign
+          echo "Running flutter pub get..."
+          flutter pub get
+
+          echo "Forcing manual Pod install for clean linking..."
+          cd ios
+          pod install
+          cd ..
+
+          echo "Cleanup and linking complete."
+
+      - name: Build iOS release (unsigned)
+        script: flutter build ipa --release --no-codesign
 
     artifacts:
-      - build/app/outputs/**/*.aab
       - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
+      - build/ios/Runner.app.dSYM.zip
 
     publishing:
       app_store_connect:
