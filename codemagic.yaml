@@ -1,40 +1,27 @@
 workflows:
-  flutter-app-release:
-    name: Flutter Release Build (iOS)
+  flutter-ios-release:
+    name: Flutter iOS Release (Automatic Signing)
     max_build_duration: 60
 
     environment:
-      groups:
-        - app_store_connect   # contains APP_STORE_PRIVATE_KEY, KEY_ID, ISSUER_ID
       flutter: stable
       xcode: latest
+      groups:
+        - app_store_connect   # contains APP_STORE_PRIVATE_KEY, KEY_ID, ISSUER_ID
 
     scripts:
-      - name: Aggressive iOS Cleanup and Pod Install 🚀
+      - name: Install Dependencies
         script: |
-          echo "Aggressively cleaning project caches..."
-          flutter clean
-          rm -rf ios/Pods/
-          rm -rf ~/Library/Caches/CocoaPods
-          rm -rf ios/.symlinks/
-          rm -rf $HOME/Library/Developer/Xcode/DerivedData/*
-
-          echo "Running flutter pub get..."
+          echo "Running Flutter pub get..."
           flutter pub get
 
-          echo "Forcing manual Pod install for clean linking..."
-          cd ios
-          pod install
-          cd ..
-
-          echo "Cleanup and linking complete."
-
-      - name: Build iOS release (unsigned)
-        script: flutter build ipa --release --no-codesign
+      - name: Build iOS IPA
+        script: |
+          echo "Building iOS IPA with automatic signing..."
+          flutter build ipa --release
 
     artifacts:
       - build/ios/ipa/*.ipa
-      - build/ios/archive/*.xcarchive
       - build/ios/Runner.app.dSYM.zip
 
     publishing:
