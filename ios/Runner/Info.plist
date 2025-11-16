@@ -13,6 +13,8 @@
     <string>$(FLUTTER_BUILD_NAME)</string>
     <key>CFBundleVersion</key>
     <string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>CFBundleExecutable</key>
+    <string>Runner</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
 
