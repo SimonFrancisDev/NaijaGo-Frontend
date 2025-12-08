@@ -8,7 +8,7 @@ import java.util.Properties
 import java.io.FileInputStream
 
 android {
-    namespace = "com.naijago.appOne"
+    namespace = "com.naijago.naija_go"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.naijago.appOne"
+        applicationId = "com.naijago.naija_go"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = 11
@@ -70,7 +70,6 @@ android {
 
 flutter {
     source = "../.."
-    // keep deferred components disabled
     extra.set("flutter.build.deferredComponents", false)
 }
 

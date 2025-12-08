@@ -51,68 +51,132 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   
   // No change needed in _fetchCurrentUserProfile as it correctly handles relative URLs
 
-  Future<void> _fetchCurrentUserProfile() async {
+Future<void> _fetchCurrentUserProfile() async {
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
+
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token');
+
+  if (token == null) {
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _errorMessage = 'Authentication token not found. Please log in.';
+      _isLoading = false;
     });
-
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('jwt_token');
-
-    if (token == null) {
-      setState(() {
-        _errorMessage = 'Authentication token not found. Please log in.';
-        _isLoading = false;
-      });
-      return;
-    }
-
-    try {
-      final Uri url = Uri.parse('$baseUrl/api/auth/me');
-      final response = await http.get(
-        url,
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        final User user = User.fromJson(responseData);
-
-        _firstNameController.text = user.firstName ?? '';
-        _lastNameController.text = user.lastName ?? '';
-        _emailController.text = user.email ?? '';
-        _phoneNumberController.text = user.phoneNumber ?? '';
-
-        setState(() {
-          // This fetched URL will now include the cache-busting parameter from the backend
-          final String? fetchedProfilePicPath = responseData['profilePicUrl']; 
-          if (fetchedProfilePicPath != null && fetchedProfilePicPath.isNotEmpty) {
-            _currentProfilePicUrl = '$baseUrl$fetchedProfilePicPath';
-          } else {
-            _currentProfilePicUrl = 'https://placehold.co/100x100/CCCCCC/000000?text=User';
-          }
-        });
-      } else {
-        final responseData = jsonDecode(response.body);
-        setState(() {
-          _errorMessage = responseData['message'] ?? 'Failed to fetch profile data.';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'An error occurred: $e. Check network or backend.';
-      });
-      print('Error fetching user profile: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    return;
   }
+
+  try {
+    final Uri url = Uri.parse('$baseUrl/api/auth/me');
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      final User user = User.fromJson(responseData);
+
+      _firstNameController.text = user.firstName ?? '';
+      _lastNameController.text = user.lastName ?? '';
+      _emailController.text = user.email ?? '';
+      _phoneNumberController.text = user.phoneNumber ?? '';
+
+      setState(() {
+        // This fetched URL will now include the cache-busting parameter from the backend
+        final String? fetchedProfilePicPath = responseData['profilePicUrl']; 
+        if (fetchedProfilePicPath != null && fetchedProfilePicPath.isNotEmpty) {
+          // FIX APPLIED HERE: Use Uri.resolve() for safe concatenation
+          _currentProfilePicUrl = Uri.parse(baseUrl).resolve(fetchedProfilePicPath).toString();
+        } else {
+          _currentProfilePicUrl = 'https://placehold.co/100x100/CCCCCC/000000?text=User';
+        }
+      });
+    } else {
+      final responseData = jsonDecode(response.body);
+      setState(() {
+        _errorMessage = responseData['message'] ?? 'Failed to fetch profile data.';
+      });
+    }
+  } catch (e) {
+    setState(() {
+      _errorMessage = 'An error occurred: $e. Check network or backend.';
+    });
+    print('Error fetching user profile: $e');
+  } finally {
+    setState(() {
+      _isLoading = false;
+    });
+  }
+}
+
+  // Future<void> _fetchCurrentUserProfile() async {
+  //   setState(() {
+  //     _isLoading = true;
+  //     _errorMessage = null;
+  //   });
+
+  //   final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   final String? token = prefs.getString('jwt_token');
+
+  //   if (token == null) {
+  //     setState(() {
+  //       _errorMessage = 'Authentication token not found. Please log in.';
+  //       _isLoading = false;
+  //     });
+  //     return;
+  //   }
+
+  //   try {
+  //     final Uri url = Uri.parse('$baseUrl/api/auth/me');
+  //     final response = await http.get(
+  //       url,
+  //       headers: {
+  //         'Content-Type': 'application/json; charset=UTF-8',
+  //         'Authorization': 'Bearer $token',
+  //       },
+  //     );
+
+  //     if (response.statusCode == 200) {
+  //       final Map<String, dynamic> responseData = jsonDecode(response.body);
+  //       final User user = User.fromJson(responseData);
+
+  //       _firstNameController.text = user.firstName ?? '';
+  //       _lastNameController.text = user.lastName ?? '';
+  //       _emailController.text = user.email ?? '';
+  //       _phoneNumberController.text = user.phoneNumber ?? '';
+
+  //       setState(() {
+  //         // This fetched URL will now include the cache-busting parameter from the backend
+  //         final String? fetchedProfilePicPath = responseData['profilePicUrl']; 
+  //         if (fetchedProfilePicPath != null && fetchedProfilePicPath.isNotEmpty) {
+  //           _currentProfilePicUrl = '$baseUrl$fetchedProfilePicPath';
+  //         } else {
+  //           _currentProfilePicUrl = 'https://placehold.co/100x100/CCCCCC/000000?text=User';
+  //         }
+  //       });
+  //     } else {
+  //       final responseData = jsonDecode(response.body);
+  //       setState(() {
+  //         _errorMessage = responseData['message'] ?? 'Failed to fetch profile data.';
+  //       });
+  //     }
+  //   } catch (e) {
+  //     setState(() {
+  //       _errorMessage = 'An error occurred: $e. Check network or backend.';
+  //     });
+  //     print('Error fetching user profile: $e');
+  //   } finally {
+  //     setState(() {
+  //       _isLoading = false;
+  //     });
+  //   }
+  // }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -125,85 +189,168 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
+  setState(() {
+    _isLoading = true;
+    _errorMessage = null;
+  });
+
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token');
+
+  if (token == null) {
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _errorMessage = 'Authentication token not found. Please log in.';
+      _isLoading = false;
     });
+    return;
+  }
 
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('jwt_token');
-
-    if (token == null) {
-      setState(() {
-        _errorMessage = 'Authentication token not found. Please log in.';
-        _isLoading = false;
-      });
-      return;
+  try {
+    String? base64Image;
+    if (_pickedImage != null) {
+      List<int> imageBytes = await _pickedImage!.readAsBytes();
+      // NOTE: You are encoding the entire file bytes to Base64 here. 
+      // Ensure your backend can handle the potentially large size of this string payload.
+      base64Image = base64Encode(imageBytes);
     }
 
-    try {
-      String? base64Image;
-      if (_pickedImage != null) {
-        List<int> imageBytes = await _pickedImage!.readAsBytes();
-        base64Image = base64Encode(imageBytes);
-      }
+    final updateData = {
+      'firstName': _firstNameController.text.trim(),
+      'lastName': _lastNameController.text.trim(),
+      'email': _emailController.text.trim(),
+      'phoneNumber': _phoneNumberController.text.trim(),
+      if (base64Image != null) 'profilePicBase64': base64Image,
+    };
 
-      final updateData = {
-        'firstName': _firstNameController.text.trim(),
-        'lastName': _lastNameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'phoneNumber': _phoneNumberController.text.trim(),
-        if (base64Image != null) 'profilePicBase64': base64Image,
-      };
+    final Uri url = Uri.parse('$baseUrl/api/auth/profile');
+    final response = await http.put(
+      url,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(updateData),
+    );
 
-      final Uri url = Uri.parse('$baseUrl/api/auth/profile');
-      final response = await http.put(
-        url,
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode(updateData),
-      );
+    final responseData = jsonDecode(response.body);
 
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200) {
-        // 🌟 FRONTEND FIX: Retrieve the profilePicUrl from the nested 'user' object 🌟
-        final Map<String, dynamic>? updatedUser = responseData['user'];
-        final String? newProfilePicPath = updatedUser?['profilePicUrl'];
-        
-        if (newProfilePicPath != null && newProfilePicPath.isNotEmpty) {
-          setState(() {
-            // Prepend baseUrl. The path includes the cache-buster now!
-            _currentProfilePicUrl = '$baseUrl$newProfilePicPath';
-            _pickedImage = null; // clear local selection since backend has it
-          });
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(responseData['message'] ?? 'Profile updated successfully!')),
-        );
-
-        if (mounted) Navigator.of(context).pop(true);
-      } else {
+    if (response.statusCode == 200) {
+      // 🌟 FRONTEND FIX: Retrieve the profilePicUrl from the nested 'user' object 🌟
+      final Map<String, dynamic>? updatedUser = responseData['user'];
+      final String? newProfilePicPath = updatedUser?['profilePicUrl'];
+      
+      if (newProfilePicPath != null && newProfilePicPath.isNotEmpty) {
         setState(() {
-          _errorMessage = responseData['message'] ?? 'Failed to update profile.';
+          // FIX APPLIED HERE: Use Uri.parse(baseUrl).resolve() for safe concatenation
+          _currentProfilePicUrl = Uri.parse(baseUrl).resolve(newProfilePicPath).toString();
+          _pickedImage = null; // clear local selection since backend has it
         });
       }
-    } catch (e) {
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(responseData['message'] ?? 'Profile updated successfully!')),
+      );
+
+      if (mounted) Navigator.of(context).pop(true);
+    } else {
       setState(() {
-        _errorMessage = 'An error occurred: $e. Check network or backend.';
-      });
-      print('Error saving profile: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
+        _errorMessage = responseData['message'] ?? 'Failed to update profile.';
       });
     }
+  } catch (e) {
+    setState(() {
+      _errorMessage = 'An error occurred: $e. Check network or backend.';
+    });
+    print('Error saving profile: $e');
+  } finally {
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
+
+  // Future<void> _saveProfile() async {
+  //   if (!_formKey.currentState!.validate()) return;
+
+  //   setState(() {
+  //     _isLoading = true;
+  //     _errorMessage = null;
+  //   });
+
+  //   final SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   final String? token = prefs.getString('jwt_token');
+
+  //   if (token == null) {
+  //     setState(() {
+  //       _errorMessage = 'Authentication token not found. Please log in.';
+  //       _isLoading = false;
+  //     });
+  //     return;
+  //   }
+
+  //   try {
+  //     String? base64Image;
+  //     if (_pickedImage != null) {
+  //       List<int> imageBytes = await _pickedImage!.readAsBytes();
+  //       base64Image = base64Encode(imageBytes);
+  //     }
+
+  //     final updateData = {
+  //       'firstName': _firstNameController.text.trim(),
+  //       'lastName': _lastNameController.text.trim(),
+  //       'email': _emailController.text.trim(),
+  //       'phoneNumber': _phoneNumberController.text.trim(),
+  //       if (base64Image != null) 'profilePicBase64': base64Image,
+  //     };
+
+  //     final Uri url = Uri.parse('$baseUrl/api/auth/profile');
+  //     final response = await http.put(
+  //       url,
+  //       headers: {
+  //         'Content-Type': 'application/json; charset=UTF-8',
+  //         'Authorization': 'Bearer $token',
+  //       },
+  //       body: jsonEncode(updateData),
+  //     );
+
+  //     final responseData = jsonDecode(response.body);
+
+  //     if (response.statusCode == 200) {
+  //       // 🌟 FRONTEND FIX: Retrieve the profilePicUrl from the nested 'user' object 🌟
+  //       final Map<String, dynamic>? updatedUser = responseData['user'];
+  //       final String? newProfilePicPath = updatedUser?['profilePicUrl'];
+        
+  //       if (newProfilePicPath != null && newProfilePicPath.isNotEmpty) {
+  //         setState(() {
+  //           // Prepend baseUrl. The path includes the cache-buster now!
+  //           _currentProfilePicUrl = '$baseUrl$newProfilePicPath';
+  //           _pickedImage = null; // clear local selection since backend has it
+  //         });
+  //       }
+
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text(responseData['message'] ?? 'Profile updated successfully!')),
+  //       );
+
+  //       if (mounted) Navigator.of(context).pop(true);
+  //     } else {
+  //       setState(() {
+  //         _errorMessage = responseData['message'] ?? 'Failed to update profile.';
+  //       });
+  //     }
+  //   } catch (e) {
+  //     setState(() {
+  //       _errorMessage = 'An error occurred: $e. Check network or backend.';
+  //     });
+  //     print('Error saving profile: $e');
+  //   } finally {
+  //     setState(() {
+  //       _isLoading = false;
+  //     });
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {

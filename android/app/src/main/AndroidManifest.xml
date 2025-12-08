@@ -1,16 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.naijago.appOne">
+    package="com.naijago.naija_go">
 
-    <!-- Required for API calls -->
     <uses-permission android:name="android.permission.INTERNET"/>
-
-    <!-- Location permissions (only if you really use location features) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
-
 
     <application
         android:label="NaijaGo"

@@ -226,6 +226,52 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
+  Widget _buildExtraImagesGallery() {
+    // Skip the first image, which is the main image already displayed.
+    // This works because the Product.fromJson now ensures all images are in imageUrls,
+    // and the first one is always the main one.
+    final extraImages = widget.product.imageUrls.skip(1).toList();
+
+    if (extraImages.isEmpty) {
+      return const SizedBox.shrink(); // Hide if there are no extra images
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 10.0),
+      child: SizedBox(
+        height: 80, // Height of the horizontal list of thumbnails
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: extraImages.length,
+          separatorBuilder: (context, index) => const SizedBox(width: 10),
+          itemBuilder: (context, index) {
+            final imageUrl = extraImages[index];
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(8.0),
+              child: Image.network(
+                imageUrl,
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: 80,
+                    height: 80,
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: Icon(Icons.image_not_supported,
+                          size: 30, color: Colors.grey),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const Color deepNavyBlue = Color(0xFF0A2A66);
@@ -307,6 +353,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildProductImage(),
+            _buildExtraImagesGallery(),
             const SizedBox(height: 18),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),

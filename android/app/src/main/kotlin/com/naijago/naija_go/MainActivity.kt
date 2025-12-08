@@ -1,4 +1,4 @@
-package com.naijago.appOne
+package com.naijago.naija_go
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
