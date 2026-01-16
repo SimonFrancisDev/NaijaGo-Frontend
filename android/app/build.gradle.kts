@@ -29,39 +29,36 @@ android {
         versionName = "1.0.6"
     }
 
-    // 🔹 Keystore for signing release builds
+    // Your keystore/signing logic...
     val keystorePropertiesFile = rootProject.file("key.properties")
     val keystoreProperties = Properties()
-    if (keystorePropertiesFile.exists()) {
+    val hasKeystore = keystorePropertiesFile.exists()
+    if (hasKeystore) {
         keystoreProperties.load(FileInputStream(keystorePropertiesFile))
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = file(keystoreProperties["storeFile"] as String?)
-            storePassword = keystoreProperties["storePassword"] as String?
+        if (hasKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
-
-            // ✅ Enable shrinking & obfuscation for production
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
-
-            // ✅ Use optimized default ProGuard + custom rules
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
-
         getByName("debug") {
-            // Keep debug fast and unoptimized
             isMinifyEnabled = false
             isShrinkResources = false
         }
@@ -77,10 +74,8 @@ dependencies {
     implementation("com.google.android.play:review:2.0.2")
     implementation("com.google.android.play:review-ktx:2.0.2")
     implementation("com.google.android.play:feature-delivery:2.1.0")
-
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
     implementation("com.google.android.gms:play-services-location:21.3.0")
-
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okio:okio:3.9.0")
     implementation("com.google.code.gson:gson:2.11.0")

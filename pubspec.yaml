@@ -34,6 +34,7 @@ dependencies:
   crypto: ^3.0.3
   local_auth: ^2.1.8 
   flutter_secure_storage: ^8.1.0
+  photo_view: ^0.15.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -57,6 +58,11 @@ flutter:
       - assets/prod_flier1.jpg
       - assets/prod_flier2.jpg
       - assets/prod_flier3.jpg
+      - assets/slider_app_five.jpg
+      - assets/slider_app_four.jpg
+      - assets/slider_app_one.jpg
+      - assets/slider_app_seven.jpg
+      - assets/slider_app_six.jpg
       - assets/app_icon.jpg      # 👈 Add your app icon here
       - assets/naijago-9.jpg # 👈 Add your splash screen image here
       - .env

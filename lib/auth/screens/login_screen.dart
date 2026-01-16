@@ -198,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Welcome Back!',
+                  'Welcome Back! 😊',
                   style: TextStyle(
                     color: color.onPrimary,
                     fontSize: 28,
@@ -296,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ElevatedButton.icon(
                               onPressed: _loginWithFingerprint,
                               icon: const Icon(Icons.fingerprint, size: 28),
-                              label: const Text("Login with Fingerprint"),
+                              label: const Text("Login with Fingerprint or Face ID"),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: color.onPrimary,
                                 foregroundColor: color.primary,
