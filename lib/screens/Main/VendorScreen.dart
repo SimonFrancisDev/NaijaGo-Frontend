@@ -588,6 +588,7 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
     }
     
     final TextEditingController accountNumberController = TextEditingController(text: _savedAccountNumber ?? '');
+    final TextEditingController accountNameController = TextEditingController(text: '');
     final TextEditingController amountController = TextEditingController();
     
     String? selectedBankCode = _savedBankCode;
@@ -659,6 +660,12 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
                     ),
                     const SizedBox(height: 12),
                     TextField(
+                      controller: accountNameController,
+                      decoration: _inputDecoration('Account Holder Name'),
+                      keyboardType: TextInputType.text,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
                       controller: amountController,
                       decoration: _inputDecoration('Amount (₦)'),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -690,6 +697,7 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
                   onPressed: () async {
                     // Validate inputs and then call the new function to start the OTP flow.
                     final acct = accountNumberController.text.trim();
+                    final accountName = accountNameController.text.trim();
                     final amtStr = amountController.text.trim();
                     final amount = double.tryParse(amtStr);
 
@@ -699,6 +707,10 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
                     }
                     if (acct.length != 10 || int.tryParse(acct) == null) {
                       _showSnack('Account number must be 10 digits.');
+                      return;
+                    }
+                    if (accountName.isEmpty) {
+                      _showSnack('Please enter account holder name.');
                       return;
                     }
                     if (amount == null || amount <= 0) {
@@ -714,6 +726,7 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
                     _requestOtpAndWithdraw(
                       bankCode: selectedBankCode!,
                       accountNumber: acct,
+                      accountName: accountName,
                       amount: amount,
                       saveDetails: saveDetails,
                     );
@@ -732,10 +745,34 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
     );
   }
 
-  // NEW: Function to handle the OTP request and final withdrawal submission.
+  Future<bool> _sendOtpRequest(String token) async {
+    try {
+      final resp = await http.post(
+        Uri.parse('$baseUrl/api/wallet/request-otp'),
+        headers: _authHeaders(token),
+        body: jsonEncode({}),
+      );
+      
+      if (resp.statusCode == 200) {
+        final body = jsonDecode(resp.body);
+        _showSnack(body['message'] ?? 'OTP sent to your email.');
+        return true;
+      } else {
+        final body = jsonDecode(resp.body);
+        _showSnack(body['message'] ?? 'Failed to send OTP.');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('OTP request error: $e');
+      _showSnack('Network error during OTP request.');
+      return false;
+    }
+  }
+
   Future<void> _requestOtpAndWithdraw({
     required String bankCode,
     required String accountNumber,
+    required String accountName,
     required double amount,
     required bool saveDetails,
   }) async {
@@ -747,17 +784,25 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
         _showSnack('Please log in again.');
         return;
       }
-      
-      // Call the new OTP dialog with a callback for resending.
+    
+      _showSnack('Sending OTP to your registered email...');
+    
+      bool otpSent = await _sendOtpRequest(token);
+    
+      if (!otpSent) {
+        _showSnack('Failed to send OTP. Please try again.');
+        return;
+      }
+    
       final otp = await _showOtpDialog(
         onResend: () => _resendOtp(token),
       );
 
       if (otp != null && otp.isNotEmpty) {
-        // Final withdrawal submission with OTP.
         _submitWithdrawal(
           bankCode: bankCode,
           accountNumber: accountNumber,
+          accountName: accountName,
           amount: amount,
           otp: otp,
           saveDetails: saveDetails,
@@ -771,23 +816,19 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
     }
   }
 
-  // NEW: Dedicated function for the OTP dialog with countdown timer.
-  Future<String?> _showOtpDialog({required VoidCallback onResend}) {
+  Future<String?> _showOtpDialog({required Future<bool> Function() onResend}) {
     final TextEditingController otpController = TextEditingController();
     
-    // Use a StatefulBuilder to manage the countdown state inside the dialog
     return showDialog<String?>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        int _otpCountdown = 300; // 5 minutes in seconds
+        int _otpCountdown = 300;
         Timer? _timer;
 
-        // The inner stateful widget for the dialog itself
         return StatefulBuilder(
           builder: (context, setState) {
             
-            // Start the timer when the dialog is built
             if (_timer == null || !_timer!.isActive) {
               _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
                 if (!mounted) {
@@ -804,7 +845,6 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
               });
             }
 
-            // Format the time display
             String minutes = (_otpCountdown ~/ 60).toString().padLeft(2, '0');
             String seconds = (_otpCountdown % 60).toString().padLeft(2, '0');
             String countdownText = '$minutes:$seconds';
@@ -827,14 +867,13 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
                     decoration: _inputDecoration('Enter the 6-digit OTP'),
                     keyboardType: TextInputType.number,
                     maxLength: 6,
-                    enabled: _otpCountdown > 0, // Disable field when timer is up
+                    enabled: _otpCountdown > 0,
                   ),
                   const SizedBox(height: 12),
-                  // Display the countdown timer
                   Text(
                     'Time remaining: $countdownText',
                     style: TextStyle(
-                      color: _otpCountdown > 60 ? deepNavyBlue : Colors.red, // Change color for urgency
+                      color: _otpCountdown > 60 ? deepNavyBlue : Colors.red,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -843,10 +882,15 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
               actions: [
                 if (_otpCountdown == 0)
                   ElevatedButton(
-                    onPressed: () {
-                      _timer?.cancel(); // Cancel the old timer
-                      onResend(); // Call the resend function
-                      Navigator.of(context).pop(); // Dismiss the dialog
+                    onPressed: () async {
+                      _timer?.cancel();
+                      bool success = await onResend();
+                      if (success && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('New OTP sent!'))
+                        );
+                      }
+                      Navigator.of(context).pop();
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: greenYellow,
@@ -867,7 +911,7 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
                           _timer?.cancel();
                           Navigator.pop(context, otpController.text.trim());
                         }
-                      : null, // Disable if OTP is not ready
+                      : null,
                   child: const Text('Submit'),
                 ),
               ],
@@ -878,31 +922,34 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
     );
   }
 
-  // NEW: Function to handle the OTP resend logic
-  Future<void> _resendOtp(String token) async {
+  Future<bool> _resendOtp(String token) async {
     _showSnack('Requesting new OTP...');
     try {
       final resp = await http.post(
         Uri.parse('$baseUrl/api/wallet/request-otp'),
         headers: _authHeaders(token),
+        body: jsonEncode({}),
       );
+    
       final body = jsonDecode(resp.body);
       if (resp.statusCode == 200) {
         _showSnack(body['message'] ?? 'New OTP sent to your email.');
+        return true;
       } else {
         _showSnack(body['message'] ?? 'Failed to resend OTP. Please try again.');
+        return false;
       }
     } catch (e) {
       _showSnack('Network error during OTP resend.');
       debugPrint('OTP resend network error: $e');
+      return false;
     }
   }
 
-
-  // NEW: Function to submit the final withdrawal request.
   Future<void> _submitWithdrawal({
     required String bankCode,
     required String accountNumber,
+    required String accountName,
     required double amount,
     required String otp,
     required bool saveDetails,
@@ -929,6 +976,7 @@ Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> 
         body: jsonEncode({
           'bank_code': bankCode,
           'account_number': accountNumber,
+          'account_name': accountName,
           'amount': amount,
           'otp': otp,
           'wallet_type': 'vendor',

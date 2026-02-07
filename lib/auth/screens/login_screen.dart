@@ -1,3 +1,6 @@
+
+
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -9,6 +12,7 @@ import './registration_screen.dart';
 import './forgot_password_screen.dart';
 import 'package:ionicons/ionicons.dart';
 import 'package:local_auth/local_auth.dart'; // ⬅️ Added
+import 'package:onesignal_flutter/onesignal_flutter.dart'; // ⬅️ Added OneSignal import
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -67,6 +71,25 @@ class _LoginScreenState extends State<LoginScreen> {
     return 'unknown-device';
   }
 
+  // 🔹 Get OneSignal Player ID - FIXED FOR SDK v5.x
+Future<String?> _getOneSignalPlayerId() async {
+  try {
+    final String? pushId = OneSignal.User.pushSubscription.id;
+
+    if (pushId != null && pushId.isNotEmpty) {
+      print('OneSignal push subscription ID: $pushId');
+      return pushId;
+    } else {
+      print('User not subscribed to push notifications or ID unavailable');
+      return null;
+    }
+  } catch (e) {
+    print('Error getting OneSignal push subscription ID: $e');
+    return null;
+  }
+}
+
+
   // 🔹 Normal login (email/password)
   Future<void> _loginUser() async {
     if (!_formKey.currentState!.validate()) {
@@ -112,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // 🔹 Shared login API call
+  // 🔹 Shared login API call (UPDATED)
   Future<void> _loginRequest(String email, String password) async {
     setState(() {
       _isLoading = true;
@@ -120,6 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final deviceFingerprint = await _getDeviceFingerprint();
+    final oneSignalPlayerId = await _getOneSignalPlayerId();
 
     try {
       final Uri url = Uri.parse('$baseUrl/api/auth/login');
@@ -128,10 +152,11 @@ class _LoginScreenState extends State<LoginScreen> {
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
-        body: jsonEncode(<String, String>{
+        body: jsonEncode(<String, dynamic>{
           'email': email,
           'password': password,
           'deviceFingerprint': deviceFingerprint,
+          'oneSignalPlayerId': oneSignalPlayerId ?? '', // Send to backend
         }),
       );
 
@@ -146,7 +171,25 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('device_fingerprint', deviceFingerprint);
         await prefs.setString('user', json.encode(userData));
         await prefs.setString('user_email', userData['email']);
-        await prefs.setString('user_password', password); // 👈 save password for fingerprint login
+        await prefs.setString('user_password', password);
+        
+        // Store OneSignal player ID for future use
+        if (oneSignalPlayerId != null) {
+          await prefs.setString('oneSignal_player_id', oneSignalPlayerId);
+        }
+
+        // Link OneSignal with user ID for better tracking
+        try {
+          await OneSignal.login(userData['id'].toString());
+          await OneSignal.User.addTags({
+            'user_id': userData['id'].toString(),
+            'email': userData['email'],
+            'last_login': DateTime.now().toIso8601String(),
+          });
+          print('OneSignal linked with user ID: ${userData['id']}');
+        } catch (e) {
+          print('Error linking OneSignal: $e');
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(responseData['message'] ?? 'Login successful!')),

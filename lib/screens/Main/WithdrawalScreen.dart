@@ -243,34 +243,46 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
     );
   }
 
-  Future<void> _requestOtp() async {
-    if (otpSecondsRemaining > 0) return;
+Future<void> _requestOtp() async {
+  if (otpSecondsRemaining > 0) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('jwt_token');
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('jwt_token');
 
-    if (token == null) {
-      _showSnack('Please log in again.');
-      return;
-    }
-
-    try {
-      final resp = await http.post(
-        Uri.parse('$baseUrl/api/wallet/request-otp'),
-        headers: _authHeaders(token),
-      );
-      final body = jsonDecode(resp.body);
-
-      if (resp.statusCode == 200) {
-        _showSnack(body['message'] ?? 'OTP sent to your email.');
-        startOtpCountdown();
-      } else {
-        _showSnack(body['message'] ?? 'Failed to request OTP.');
-      }
-    } catch (e) {
-      _showSnack('Network error requesting OTP.');
-    }
+  if (token == null) {
+    _showSnack('Please log in again.');
+    return;
   }
+
+  try {
+    final resp = await http.post(
+      Uri.parse('$baseUrl/api/wallet/request-otp'),
+      headers: _authHeaders(token),
+      // No body needed — your backend doesn't require it
+    );
+
+    if (resp.statusCode == 200) {
+      final body = jsonDecode(resp.body);
+      _showSnack(body['message'] ?? 'OTP sent to your email.');
+      startOtpCountdown();
+    } else {
+      // IMPROVED: Show the actual server error message
+      try {
+        final body = jsonDecode(resp.body);
+        final serverMsg = body['message'] ?? 'Server error (${resp.statusCode})';
+        _showSnack(serverMsg);
+        print('OTP request failed: $serverMsg (Status: ${resp.statusCode}) - Body: ${resp.body}');
+      } catch (e) {
+        // If body is not JSON
+        _showSnack('Server error: ${resp.statusCode}');
+        print('OTP request failed - Status: ${resp.statusCode} - Raw body: ${resp.body}');
+      }
+    }
+  } catch (e) {
+    _showSnack('Network error requesting OTP.');
+    print('OTP network error: $e');
+  }
+}
 
   Future<void> _handleWithdrawal() async {
     if (!formKey.currentState!.validate()) return;

@@ -1,5 +1,3 @@
-
-
 // lib/screens/Main/orders_received_screen.dart
 import 'dart:async';
 import 'dart:convert';
@@ -16,8 +14,6 @@ import '../../constants.dart';
 const Color _deepNavyBlue = Color(0xFF000080);
 const Color _greenYellow = Color(0xFFADFF2F);
 const Color _whiteSmoke = Color(0xFFF5F5F5);
-// Corrected: Make this a const variable
-const TextStyle _selectedLabelTextStyle = TextStyle(color: _deepNavyBlue);
 
 final ThemeData _appTheme = ThemeData(
   scaffoldBackgroundColor: Colors.white,
@@ -63,8 +59,6 @@ final ThemeData _appTheme = ThemeData(
 );
 
 // ====== Data Models ======
-// Added a `copyWith` method here as it's cleaner than an extension
-// when the class is defined in the same file.
 class VendorOrder {
   final String id;
   final String userId;
@@ -86,21 +80,26 @@ class VendorOrder {
     required this.items,
   });
 
+  // ✅ FIXED: Parse vendor shipments correctly
   factory VendorOrder.fromJson(Map<String, dynamic> json) {
-    final user = json['user'] ?? {};
+    // For vendor shipments, the structure is different
+    final mainOrder = json['mainOrder'] ?? {};
+    final user = mainOrder['user'] ?? {};
+    
     return VendorOrder(
       id: (json['_id'] ?? json['id']).toString(),
       userId: (user['_id'] ?? user['id'] ?? '').toString(),
-      buyerName: (user['firstName'] != null && user['lastName'] != null)
-          ? '${user['firstName']} ${user['lastName']}'
-          : user['firstName'] ?? user['lastName'] ?? 'Buyer',
-      buyerEmail: user['email']?.toString(),
-      buyerPhone: user['phoneNumber']?.toString(),
-      orderStatus: (json['orderStatus'] ?? 'pending').toString(),
+      // ✅ Always show "Customer Order" for vendors (hides buyer info)
+      buyerName: 'Customer Order',
+      buyerEmail: null, // ✅ Hide email
+      buyerPhone: null, // ✅ Hide phone
+      // ✅ Use shipmentStatus instead of orderStatus
+      orderStatus: (json['shipmentStatus'] ?? 'processing').toString(),
       createdAt: DateTime.tryParse(
               (json['createdAt'] ?? DateTime.now().toIso8601String()).toString()) ??
           DateTime.now(),
-      items: (json['orderItems'] as List? ?? [])
+      // ✅ Use 'items' array from Shipment model
+      items: (json['items'] as List? ?? [])
           .map((itemJson) => VendorOrderItem.fromJson(itemJson))
           .toList(),
     );
@@ -333,8 +332,8 @@ class _OrdersRecivedScreenState extends State<OrdersRecivedScreen> {
     setState(() {
       _displayedOrders = _allOrders.where((order) {
         final matchesStatus = _statusFilter == 'all' || order.orderStatus == _statusFilter;
+        // ✅ Search by product name only (not buyer name)
         final matchesSearch = query.isEmpty ||
-            order.buyerName.toLowerCase().contains(query) ||
             order.items.any((item) => item.productName.toLowerCase().contains(query));
         return matchesStatus && matchesSearch;
       }).toList();
@@ -435,7 +434,7 @@ class _OrdersRecivedScreenState extends State<OrdersRecivedScreen> {
         controller: _searchCtrl,
         onChanged: _onSearchChanged,
         decoration: const InputDecoration(
-          hintText: 'Search by product or buyer...',
+          hintText: 'Search by product name...', // ✅ Updated hint
           prefixIcon: Icon(Icons.search),
         ),
       ),
@@ -497,7 +496,8 @@ class _OrdersRecivedScreenState extends State<OrdersRecivedScreen> {
       ['all', 'All'],
       ['pending', 'Pending'],
       ['processing', 'Processing'],
-      ['shipped', 'Shipped'],
+      ['ready_for_pickup', 'Ready for Pickup'],
+      ['out_for_delivery', 'Out for Delivery'],
       ['delivered', 'Delivered'],
       ['cancelled', 'Cancelled'],
     ];
@@ -588,6 +588,7 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+// ✅ FIXED: _OrderTile class (NO SYNTAX ERRORS)
 class _OrderTile extends StatelessWidget {
   final VendorOrder order;
   final Future<void> Function(VendorOrder order, String newStatus) onUpdateStatus;
@@ -597,28 +598,51 @@ class _OrderTile extends StatelessWidget {
     required this.onUpdateStatus,
   });
 
-  Color _getBadgeColor() {
-    return switch (order.orderStatus) {
-      'delivered' => Colors.green,
-      'shipped' => Colors.teal,
-      'processing' => Colors.orange,
-      'cancelled' => Colors.red,
-      _ => Colors.blueGrey,
-    };
+  Color _getBadgeColor(String status) {
+    switch (status) {
+      case 'delivered':
+        return Colors.green;
+      case 'ready_for_pickup':
+        return Colors.blue;
+      case 'out_for_delivery':
+        return Colors.orange;
+      case 'processing':
+        return Colors.orange;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
+  Color _getResolvedBadgeColor(String status) {
+    switch (status) {
+      case 'delivered':
+        return Colors.green.shade700;
+      case 'ready_for_pickup':
+        return Colors.blue.shade700;
+      case 'out_for_delivery':
+        return Colors.orange.shade700;
+      case 'processing':
+        return Colors.orange.shade700;
+      case 'cancelled':
+        return Colors.red.shade700;
+      default:
+        return Colors.blueGrey.shade700;
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final badgeColor = _getBadgeColor();
+    final badgeColor = _getBadgeColor(order.orderStatus);
     final deepNavyBlue = Theme.of(context).appBarTheme.backgroundColor!;
+    final resolvedBadgeColor = _getResolvedBadgeColor(order.orderStatus);
 
-    final resolvedBadgeColor700 = switch (order.orderStatus) {
-      'delivered' => Colors.green.shade700,
-      'shipped' => Colors.teal.shade700,
-      'processing' => Colors.orange.shade700,
-      'cancelled' => Colors.red.shade700,
-      _ => Colors.blueGrey.shade700,
-    };
+    final totalAmount = order.items.fold(0.0, (sum, item) => sum + (item.unitPrice * item.quantity));
 
     return Card(
       elevation: 2,
@@ -629,12 +653,13 @@ class _OrderTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Order ID and Status
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
-                    'Order ID: ${order.id.substring(0, 8)}...',
+                    'Shipment ID: ${order.id.substring(0, 8)}...',
                     style: TextStyle(
                       color: deepNavyBlue.withOpacity(0.6),
                       fontSize: 13,
@@ -650,9 +675,9 @@ class _OrderTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    order.orderStatus.toUpperCase(),
+                    order.orderStatus.replaceAll('_', ' ').toUpperCase(),
                     style: TextStyle(
-                      color: resolvedBadgeColor700,
+                      color: resolvedBadgeColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.6,
@@ -662,17 +687,31 @@ class _OrderTile extends StatelessWidget {
               ],
             ),
             const Divider(height: 20, thickness: 1),
+            
+            // ✅ Customer Info (HIDDEN - Shows "Customer Order" instead of buyer details)
             Row(
               children: [
-                Icon(Icons.person_outline, size: 20, color: deepNavyBlue),
+                Icon(Icons.shopping_bag_outlined, size: 20, color: deepNavyBlue),
                 const SizedBox(width: 8),
-                Text(order.buyerName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  "Customer Order",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontStyle: FontStyle.italic,
+                    color: deepNavyBlue.withOpacity(0.7),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+            
+            // Ordered Products Header
             Text('Ordered Products:', style: TextStyle(fontWeight: FontWeight.bold, color: deepNavyBlue.withOpacity(0.8))),
+            const SizedBox(height: 8),
+            
+            // Product List
             ...order.items.map((item) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  padding: const EdgeInsets.symmetric(vertical: 6.0),
                   child: Row(
                     children: [
                       _ProductAvatar(imageUrl: item.productImageUrl, name: item.productName),
@@ -681,25 +720,86 @@ class _OrderTile extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            Text('Qty: ${item.quantity}', style: TextStyle(color: deepNavyBlue.withOpacity(0.7))),
+                            Text(
+                              item.productName,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
+                                  'Qty: ${item.quantity}',
+                                  style: TextStyle(color: deepNavyBlue.withOpacity(0.7), fontSize: 13),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  '₦${item.unitPrice.toStringAsFixed(2)} each',
+                                  style: TextStyle(color: deepNavyBlue.withOpacity(0.6), fontSize: 13),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
-                      Text('₦${item.unitPrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '₦${(item.unitPrice * item.quantity).toStringAsFixed(2)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                          Text(
+                            'Total',
+                            style: TextStyle(color: deepNavyBlue.withOpacity(0.5), fontSize: 10),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 )).toList(),
             const Divider(height: 20, thickness: 1),
+            
+            // Order Total and Actions
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Total: ₦${order.items.fold(0.0, (sum, item) => sum + (item.unitPrice * item.quantity)).toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _deepNavyBlue),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Order Total:',
+                      style: TextStyle(
+                        color: deepNavyBlue.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      '₦${totalAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        fontSize: 18, 
+                        color: _deepNavyBlue
+                      ),
+                    ),
+                  ],
                 ),
                 _ActionsMenu(order: order, onUpdateStatus: onUpdateStatus),
               ],
+            ),
+            
+            // Order Date
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                'Order Date: ${_formatDate(order.createdAt)}',
+                style: TextStyle(
+                  color: deepNavyBlue.withOpacity(0.5),
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
             ),
           ],
         ),
@@ -775,18 +875,21 @@ class _ActionsMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deepNavyBlue = Theme.of(context).appBarTheme.backgroundColor!;
-    final menuItems = <({String label, String value, IconData icon})>[];
-    if (order.orderStatus != 'processing' && order.orderStatus != 'shipped' && order.orderStatus != 'delivered') {
-      menuItems.add((label: 'Mark Processing', value: 'processing', icon: Icons.play_circle_outline));
+    final List<Map<String, dynamic>> menuItems = [];
+    
+    // ✅ Updated status transitions based on shipment status
+    if (order.orderStatus == 'processing') {
+      menuItems.add({'label': 'Ready for Pickup', 'value': 'ready_for_pickup', 'icon': Icons.inventory_2_outlined});
+      menuItems.add({'label': 'Out for Delivery', 'value': 'out_for_delivery', 'icon': Icons.local_shipping_outlined});
     }
-    if (order.orderStatus != 'shipped' && order.orderStatus != 'delivered') {
-      menuItems.add((label: 'Mark Shipped', value: 'shipped', icon: Icons.local_shipping_outlined));
+    if (order.orderStatus == 'ready_for_pickup') {
+      menuItems.add({'label': 'Out for Delivery', 'value': 'out_for_delivery', 'icon': Icons.local_shipping_outlined});
     }
-    if (order.orderStatus != 'delivered') {
-      menuItems.add((label: 'Mark Delivered', value: 'delivered', icon: Icons.check_circle_outline));
+    if (order.orderStatus == 'out_for_delivery') {
+      menuItems.add({'label': 'Mark Delivered', 'value': 'delivered', 'icon': Icons.check_circle_outline});
     }
     if (order.orderStatus != 'cancelled' && order.orderStatus != 'delivered') {
-      menuItems.add((label: 'Mark Cancelled', value: 'cancelled', icon: Icons.cancel_outlined));
+      menuItems.add({'label': 'Mark Cancelled', 'value': 'cancelled', 'icon': Icons.cancel_outlined});
     }
 
     if (menuItems.isEmpty) {
@@ -798,12 +901,12 @@ class _ActionsMenu extends StatelessWidget {
       onSelected: (value) => onUpdateStatus(order, value),
       itemBuilder: (context) => menuItems
           .map((m) => PopupMenuItem<String>(
-                value: m.value,
+                value: m['value'] as String,
                 child: Row(
                   children: [
-                    Icon(m.icon, size: 18, color: deepNavyBlue),
+                    Icon(m['icon'] as IconData, size: 18, color: deepNavyBlue),
                     const SizedBox(width: 8),
-                    Text(m.label),
+                    Text(m['label'] as String),
                   ],
                 ),
               ))
@@ -905,14 +1008,17 @@ class _SkeletonTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deepNavyBlue = Theme.of(context).appBarTheme.backgroundColor!;
-    Widget box({double h = 12, double w = double.infinity, double r = 8}) => Container(
-          height: h,
-          width: w,
-          decoration: BoxDecoration(
-            color: deepNavyBlue.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(r),
-          ),
-        );
+    
+    Widget box({double h = 12, double w = double.infinity, double r = 8}) {
+      return Container(
+        height: h,
+        width: w,
+        decoration: BoxDecoration(
+          color: deepNavyBlue.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(r),
+        ),
+      );
+    }
 
     return Card(
       elevation: 2,

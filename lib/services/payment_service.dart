@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutterwave_standard/flutterwave.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PaymentService {
   /// Starts a Flutterwave payment flow
@@ -13,6 +14,7 @@ class PaymentService {
     required String email,
     required String name,
     required String phoneNumber,
+    String? userId, // NEW: Add optional userId parameter for webhooks
   }) async {
     // --- Load keys from .env ---
     final publicKey = dotenv.env['FLUTTERWAVE_PUBLIC_KEY'];
@@ -44,11 +46,13 @@ class PaymentService {
       paymentOptions: "card, ussd, banktransfer",
       customization: Customization(title: 'E-commerce Payment'),
       isTestMode: isTestMode,
+      // CRITICAL FIX: Add meta field with userId for webhook linking
+      meta: userId != null ? {'userId': userId} : null,
     );
 
     try {
       debugPrint(
-          "💳 [PaymentService] Initiating payment | Amount: ₦$amount | Email: $email | Ref: $txRef");
+          "💳 [PaymentService] Initiating payment | Amount: ₦$amount | Email: $email | Ref: $txRef | UserID: ${userId ?? 'not_set'}");
 
       final response = await flutterwave.charge(context);
 

@@ -260,8 +260,8 @@ class _VendorMyProductsScreenState extends State<VendorMyProductsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Lottie.asset('assets/animations/no-product.json',
-                width: 200, height: 200),
+            // Replace with safe widget that won't crash
+            _buildNoProductsAnimation(),
             const Text(
               "You have no products yet.",
               style: TextStyle(fontSize: 18, color: deepNavyBlue),
@@ -391,6 +391,45 @@ class _VendorMyProductsScreenState extends State<VendorMyProductsScreen>
           _buildAnimatedBoostButton(),
         ],
       ),
+    );
+  }
+
+  // NEW: Safe animation builder
+  Widget _buildNoProductsAnimation() {
+    // Try to load Lottie with error handling
+    try {
+      return Lottie.asset(
+        'assets/animations/no-product.json',
+        width: 200,
+        height: 200,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildFallbackIcon();
+        },
+      );
+    } catch (e) {
+      return _buildFallbackIcon();
+    }
+  }
+
+  // NEW: Fallback icon when Lottie fails
+  Widget _buildFallbackIcon() {
+    return Column(
+      children: [
+        Icon(
+          Icons.inventory_2_outlined,
+          size: 100,
+          color: deepNavyBlue.withOpacity(0.5),
+        ),
+        const SizedBox(height: 20),
+        RotationTransition(
+          turns: _animationController,
+          child: Icon(
+            Icons.shopping_bag_outlined,
+            size: 80,
+            color: greenYellow,
+          ),
+        ),
+      ],
     );
   }
 

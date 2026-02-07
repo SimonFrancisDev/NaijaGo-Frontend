@@ -25,8 +25,8 @@ android {
         applicationId = "com.naijago.naija_go"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 11
-        versionName = "1.0.6"
+        versionCode = 15
+        versionName = "1.0.1"
     }
 
     // Your keystore/signing logic...
@@ -42,7 +42,7 @@ android {
             create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
+                storeFile = rootProject.file("app/" + keystoreProperties["storeFile"] as String) // FIX 1
                 storePassword = keystoreProperties["storePassword"] as String
             }
         }
@@ -50,7 +50,9 @@ android {
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.findByName("release")
+            if (signingConfigs.findByName("release") != null) { // FIX 2
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
