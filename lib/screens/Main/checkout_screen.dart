@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart';
 import 'dart:async'; // Added for timeouts
+import 'dart:io' show Platform;
 
 import '../../constants.dart';
 import '../../providers/cart_provider.dart';
@@ -304,76 +305,229 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  // Future<void> _fetchCurrentLocation() async {
+  //   if (_isFetchingLocation) return; // Prevent concurrent location fetching
+    
+  //   setState(() {
+  //     _isFetchingLocation = true;
+  //     _isLoading = true;
+  //   });
+    
+  //   try {
+  //     setState(() {
+  //       _useSavedAddress = false;
+  //       _selectedAddress = null;
+  //       _addressSelectedOrFetched = false;
+  //       _isSummaryCalculated = false;
+  //       _fullOrderSummary = null;
+  //     });
+
+  //     LocationPermission permission = await Geolocator.checkPermission();
+  //     if (permission == LocationPermission.denied) {
+  //       permission = await Geolocator.requestPermission();
+  //       if (permission == LocationPermission.denied) {
+  //         _showSnackBar('Location permissions denied.');
+  //         return;
+  //       }
+  //     }
+
+  //     if (permission == LocationPermission.deniedForever) {
+  //       _showSnackBar('Location permissions permanently denied.');
+  //       return;
+  //     }
+
+  //     Position position = await Geolocator.getCurrentPosition(
+  //       desiredAccuracy: LocationAccuracy.high,
+  //     ).timeout(const Duration(seconds: 15));
+
+  //     List<Placemark> placemarks = await placemarkFromCoordinates(
+  //       position.latitude,
+  //       position.longitude,
+  //     ).timeout(const Duration(seconds: 10));
+
+  //     if (placemarks.isEmpty) throw Exception('No address found');
+
+  //     final place = placemarks.first;
+
+  //     // _addressController.text = '${place.street ?? ''}, ${place.subLocality ?? ''}';
+  //     // _cityController.text = place.locality ?? '';
+  //     // _postalCodeController.text = place.postalCode ?? '';
+  //     // _countryController.text = place.country ?? '';
+
+  //     // Improved address building – better handling for iOS incomplete data
+  //     final addressParts = <String>[];
+
+  //     if (place.thoroughfare?.isNotEmpty == true) {
+  //       addressParts.add(place.thoroughfare!);
+  //     }
+  //     if (place.subThoroughfare?.isNotEmpty == true) {
+  //       addressParts.add(place.subThoroughfare!);
+  //     }
+  //     if (place.subLocality?.isNotEmpty == true) {
+  //       addressParts.add(place.subLocality!);
+  //     }
+  //     if (addressParts.isEmpty && place.street?.isNotEmpty == true) {
+  //       addressParts.add(place.street!);
+  //     }
+
+  //     _addressController.text = addressParts.join(', ').trim();
+
+  //     if (_addressController.text.isEmpty || _addressController.text == ',') {
+  //       _addressController.text = place.locality != null 
+  //           ? 'Area in ${place.locality}' 
+  //           : 'Current Location';
+  //     }
+
+  //     _cityController.text = place.locality ?? place.subAdministrativeArea ?? place.administrativeArea ?? '';
+
+  //     _postalCodeController.text = place.postalCode ?? '';
+
+  //     _countryController.text = place.country ?? place.isoCountryCode ?? 'Nigeria';
+
+  //     // Optional: iOS-specific hint to user
+
+  //     if (Platform.isIOS) {
+  //       _showSnackBar(
+  //         'Location loaded — please verify address & postal code (iOS data can be limited)',
+  //         isError: false,
+  //       );
+  //       print('Platform is iOS');
+  //     } 
+
+  //     if(Platform.isAndroid) {
+  //       _showSnackBar(
+  //         'Location loaded — please verify address & postal code (iOS data can be limited)',
+  //         isError: false,
+  //       );
+  //       print('Platform is Android');
+  //     }
+
+  //     setState(() {
+  //       _addressSelectedOrFetched = true;
+  //       _userLatitude = position.latitude;
+  //       _userLongitude = position.longitude;
+  //     });
+
+  //     _showSnackBar('Location fetched successfully! Calculating delivery fee...');
+  //     await _fetchOrderSummary();
+  //   } catch (e) {
+  //     _showSnackBar('Failed to get current location: $e');
+  //     print('Current location error: $e');
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         _isLoading = false;
+  //         _isFetchingLocation = false;
+  //       });
+  //     }
+  //   }
+  // }
+
+  
   Future<void> _fetchCurrentLocation() async {
-    if (_isFetchingLocation) return; // Prevent concurrent location fetching
-    
+  if (_isFetchingLocation) return; // Prevent concurrent location fetching
+  
+  setState(() {
+    _isFetchingLocation = true;
+    _isLoading = true;
+  });
+  
+  try {
     setState(() {
-      _isFetchingLocation = true;
-      _isLoading = true;
+      _useSavedAddress = false;
+      _selectedAddress = null;
+      _addressSelectedOrFetched = false;
+      _isSummaryCalculated = false;
+      _fullOrderSummary = null;
     });
-    
-    try {
-      setState(() {
-        _useSavedAddress = false;
-        _selectedAddress = null;
-        _addressSelectedOrFetched = false;
-        _isSummaryCalculated = false;
-        _fullOrderSummary = null;
-      });
 
-      LocationPermission permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showSnackBar('Location permissions denied.');
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        _showSnackBar('Location permissions permanently denied.');
+        _showSnackBar('Location permissions denied.');
         return;
       }
+    }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      ).timeout(const Duration(seconds: 15));
+    if (permission == LocationPermission.deniedForever) {
+      _showSnackBar('Location permissions permanently denied.');
+      return;
+    }
 
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      ).timeout(const Duration(seconds: 10));
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    ).timeout(const Duration(seconds: 15));
 
-      if (placemarks.isEmpty) throw Exception('No address found');
+    List<Placemark> placemarks = await placemarkFromCoordinates(
+      position.latitude,
+      position.longitude,
+    ).timeout(const Duration(seconds: 10));
 
-      final place = placemarks.first;
+    if (placemarks.isEmpty) throw Exception('No address found');
 
-      _addressController.text = '${place.street ?? ''}, ${place.subLocality ?? ''}';
-      _cityController.text = place.locality ?? '';
-      _postalCodeController.text = place.postalCode ?? '';
-      _countryController.text = place.country ?? '';
+    final place = placemarks.first;
 
+    // ────────────────────────────────────────────────────────────────
+    // IMPROVED ADDRESS BUILDING – replaces your old 4 lines
+    final addressParts = <String>[];
+
+    if (place.thoroughfare?.isNotEmpty == true) {
+      addressParts.add(place.thoroughfare!);
+    }
+    if (place.subThoroughfare?.isNotEmpty == true) {
+      addressParts.add(place.subThoroughfare!);
+    }
+    if (place.subLocality?.isNotEmpty == true) {
+      addressParts.add(place.subLocality!);
+    }
+    if (addressParts.isEmpty && place.street?.isNotEmpty == true) {
+      addressParts.add(place.street!);
+    }
+
+    _addressController.text = addressParts.join(', ').trim();
+
+    if (_addressController.text.isEmpty || _addressController.text == ',') {
+      _addressController.text = place.locality != null 
+          ? 'Area in ${place.locality}' 
+          : 'Current Location';
+    }
+
+    _cityController.text = place.locality ?? place.subAdministrativeArea ?? place.administrativeArea ?? '';
+
+    _postalCodeController.text = place.postalCode ?? '';
+
+    _countryController.text = place.country ?? place.isoCountryCode ?? 'Nigeria';
+
+    // iOS-specific hint (only show on iPhone — Android usually has good data)
+    if (Platform.isIOS) {
+      _showSnackBar(
+        'Location loaded — please verify address & postal code (iOS data can be limited)',
+        isError: false,
+      );
+    }
+
+    setState(() {
+      _addressSelectedOrFetched = true;
+      _userLatitude = position.latitude;
+      _userLongitude = position.longitude;
+    });
+
+    _showSnackBar('Location fetched successfully! Calculating delivery fee...');
+    await _fetchOrderSummary();
+  } catch (e) {
+    _showSnackBar('Failed to get current location: $e');
+    print('Current location error: $e');
+  } finally {
+    if (mounted) {
       setState(() {
-        _addressSelectedOrFetched = true;
-        _userLatitude = position.latitude;
-        _userLongitude = position.longitude;
+        _isLoading = false;
+        _isFetchingLocation = false;
       });
-
-      _showSnackBar('Location fetched successfully! Calculating delivery fee...');
-      await _fetchOrderSummary();
-    } catch (e) {
-      _showSnackBar('Failed to get current location: $e');
-      print('Current location error: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isFetchingLocation = false;
-        });
-      }
     }
   }
-
+}
+  
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -495,198 +649,387 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return true;
   }
 
-  Future<void> _placeOrder() async {
-    // Prevent any concurrent order placement
-    if (!_validateOrderPlacement()) {
+  // Future<void> _placeOrder() async {
+  //   // Prevent any concurrent order placement
+  //   if (!_validateOrderPlacement()) {
+  //     return;
+  //   }
+
+  //   setState(() {
+  //     _isPlacingOrder = true;
+  //     _isProcessingPayment = true;
+  //     _isLoading = true;
+  //     _errorMessage = null;
+  //     _successMessage = null;
+  //   });
+
+  //   try {
+  //     // Ensure coordinates are available
+  //     final hasCoords = await _ensureUserLocation();
+  //     if (!hasCoords) {
+  //       throw Exception('Failed to determine delivery coordinates');
+  //     }
+
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString('jwt_token');
+  //     if (token == null) throw Exception('Authentication token not found');
+
+  //     final cartProvider = Provider.of<CartProvider>(context, listen: false);
+  //     final orderItems = cartProvider.items.values.map((item) => item.toJson()).toList();
+
+  //     if (orderItems.any((i) => i['vendor'] == null)) {
+  //       throw Exception('Missing vendor info in cart');
+  //     }
+
+  //     final summary = _fullOrderSummary!;
+  //     final totalPrice = summary.totalPrice;
+
+  //     final requestBody = {
+  //       'orderItems': orderItems,
+  //       'shippingAddress': _useSavedAddress
+  //           ? _selectedAddress!.toJson()
+  //           : {
+  //               'address': _addressController.text.trim(),
+  //               'city': _cityController.text.trim(),
+  //               'postalCode': _postalCodeController.text.trim(),
+  //               'country': _countryController.text.trim(),
+  //             },
+  //       'paymentMethod': _selectedPaymentMethod,
+  //       'totalShippingPrice': summary.totalShippingPrice,
+  //       'totalPlatformFees': summary.totalPlatformFees,
+  //       'taxPrice': summary.taxPrice,
+  //       'totalPrice': totalPrice,
+  //       'userLocation': {
+  //         'latitude': _userLatitude,
+  //         'longitude': _userLongitude,
+  //       },
+  //       'shipmentSummaries': summary.shipmentSummaries.map((s) => s.toJson()).toList(),
+  //     };
+
+  //     // Create the order first
+  //     final createOrderUrl = Uri.parse('$baseUrl/api/orders');
+  //     final createOrderResp = await http.post(
+  //       createOrderUrl,
+  //       headers: {
+  //         'Content-Type': 'application/json; charset=UTF-8',
+  //         'Authorization': 'Bearer $token',
+  //       },
+  //       body: jsonEncode(requestBody),
+  //     );
+
+  //     final createOrderData = _safeJson(createOrderResp.body);
+
+  //     if (createOrderResp.statusCode != 201) {
+  //       _errorMessage = createOrderData['message'] ?? 'Failed to place order';
+  //       _showSnackBar(_errorMessage!, isError: true);
+  //       return;
+  //     }
+
+  //     final orderId = createOrderData['_id'] as String?;
+  //     if (orderId == null) throw Exception('No order ID received');
+
+  //     // Handle payment based on selected method
+  //     if (_selectedPaymentMethod == 'Wallet') {
+  //       final payUrl = Uri.parse('$baseUrl/api/orders/$orderId/pay/wallet');
+  //       final payResp = await http.put(
+  //         payUrl,
+  //         headers: {
+  //           'Content-Type': 'application/json; charset=UTF-8',
+  //           'Authorization': 'Bearer $token',
+  //         },
+  //       );
+
+  //       if (payResp.statusCode == 200) {
+  //         _successMessage = 'Order placed using Wallet!';
+  //         cartProvider.clearCart();
+  //         await _fetchAddressesAndWallet();
+  //         _showSnackBar(_successMessage!);
+  //         widget.onOrderSuccess();
+  //         if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+  //       } else {
+  //         final payData = _safeJson(payResp.body);
+  //         _errorMessage = payData['message'] ?? 'Wallet payment failed';
+  //         _showSnackBar(_errorMessage!, isError: true);
+  //       }
+  //     } else {
+  //       // External payment (Flutterwave)
+  //       final userEmail = prefs.getString('email') ?? 'customer@example.com';
+  //       final fullName = prefs.getString('fullName') ?? 'Test User';
+  //       final phone = prefs.getString('phoneNumber') ?? '08012345678';
+
+  //       final paymentService = PaymentService();
+  //       final chargeResponse = await paymentService.startFlutterwavePayment(
+  //         context: context,
+  //         amount: totalPrice,
+  //         email: userEmail,
+  //         name: fullName,
+  //         phoneNumber: phone,
+  //       );
+
+  //       if (chargeResponse == null) {
+  //         _errorMessage = 'Payment not initiated or cancelled';
+  //         _showSnackBar(_errorMessage!, isError: true);
+  //         return;
+  //       }
+
+  //       final fwStatus = (chargeResponse.status ?? '').toLowerCase();
+
+  //       if (fwStatus == 'cancelled') {
+  //         _errorMessage = 'Payment cancelled by user';
+  //         _showSnackBar(_errorMessage!);
+  //         return;
+  //       }
+
+  //       if (fwStatus != 'success') {
+  //         // Use the fixed helper method
+  //         final processorMsg = _getProcessorMessage(chargeResponse);
+  //         _errorMessage = 'Payment failed: $processorMsg';
+  //         _showSnackBar(_errorMessage!, isError: true);
+  //         print('Flutterwave failure: $processorMsg | Full response: ${chargeResponse.toJson()}');
+  //         return;
+  //       }
+
+  //       // Use txRef (preferred) or fallback to transactionId
+  //       final paymentRef = chargeResponse.txRef ?? chargeResponse.transactionId;
+
+  //       if (paymentRef == null || paymentRef.isEmpty) {
+  //         _errorMessage = 'Missing transaction reference';
+  //         _showSnackBar(_errorMessage!, isError: true);
+  //         return;
+  //       }
+
+  //       // Confirm payment with backend
+  //       final payUrl = Uri.parse('$baseUrl/api/orders/$orderId/pay');
+  //       final payResp = await http.put(
+  //         payUrl,
+  //         headers: {
+  //           'Content-Type': 'application/json; charset=UTF-8',
+  //           'Authorization': 'Bearer $token',
+  //         },
+  //         body: jsonEncode({
+  //           'transaction_id': paymentRef,
+  //           'status': chargeResponse.status,
+  //           'update_time': DateTime.now().toIso8601String(),
+  //           'email_address': userEmail,
+  //         }),
+  //       );
+
+  //       if (payResp.statusCode == 200) {
+  //         _successMessage = 'Order placed and paid!';
+  //         cartProvider.clearCart();
+  //         _showSnackBar(_successMessage!);
+  //         widget.onOrderSuccess();
+  //         if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+  //       } else {
+  //         final payData = _safeJson(payResp.body);
+  //         _errorMessage = payData['message'] ?? 'Payment confirmation failed';
+  //         _showSnackBar(_errorMessage!, isError: true);
+  //         print('Backend confirmation failed: ${payResp.statusCode} - ${payResp.body}');
+  //       }
+  //     }
+  //   } catch (e, stack) {
+  //     _errorMessage = 'Error: $e';
+  //     _showSnackBar('Failed to place order. Try again.', isError: true);
+  //     print('Place order error: $e\n$stack');
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         _isLoading = false;
+  //         _isPlacingOrder = false;
+  //         _isProcessingPayment = false;
+  //       });
+  //     }
+  //   }
+  // }
+
+  // ... (everything above _placeOrder remains 100% unchanged)
+
+Future<void> _placeOrder() async {
+  // Prevent any concurrent order placement
+  if (!_validateOrderPlacement()) {
+    return;
+  }
+
+  setState(() {
+    _isPlacingOrder = true;
+    _isProcessingPayment = true;
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
+  });
+
+  try {
+    // Ensure coordinates are available
+    final hasCoords = await _ensureUserLocation();
+    if (!hasCoords) {
+      throw Exception('Failed to determine delivery coordinates');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    if (token == null) throw Exception('Authentication token not found');
+
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final orderItems = cartProvider.items.values.map((item) => item.toJson()).toList();
+
+    if (orderItems.any((i) => i['vendor'] == null)) {
+      throw Exception('Missing vendor info in cart');
+    }
+
+    final summary = _fullOrderSummary!;
+    final totalPrice = summary.totalPrice;
+
+    final requestBody = {
+      'orderItems': orderItems,
+      'shippingAddress': _useSavedAddress
+          ? _selectedAddress!.toJson()
+          : {
+              'address': _addressController.text.trim(),
+              'city': _cityController.text.trim(),
+              'postalCode': _postalCodeController.text.trim(),
+              'country': _countryController.text.trim(),
+            },
+      'paymentMethod': _selectedPaymentMethod,
+      'totalShippingPrice': summary.totalShippingPrice,
+      'totalPlatformFees': summary.totalPlatformFees,
+      'taxPrice': summary.taxPrice,
+      'totalPrice': totalPrice,
+      'userLocation': {
+        'latitude': _userLatitude,
+        'longitude': _userLongitude,
+      },
+      'shipmentSummaries': summary.shipmentSummaries.map((s) => s.toJson()).toList(),
+    };
+
+    // Create the order first
+    final createOrderUrl = Uri.parse('$baseUrl/api/orders');
+    final createOrderResp = await http.post(
+      createOrderUrl,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(requestBody),
+    );
+
+    final createOrderData = _safeJson(createOrderResp.body);
+
+    if (createOrderResp.statusCode != 201) {
+      _errorMessage = createOrderData['message'] ?? 'Failed to place order';
+      _showSnackBar(_errorMessage!, isError: true);
       return;
     }
 
-    setState(() {
-      _isPlacingOrder = true;
-      _isProcessingPayment = true;
-      _isLoading = true;
-      _errorMessage = null;
-      _successMessage = null;
-    });
+    final orderId = createOrderData['_id'] as String?;
+    if (orderId == null) throw Exception('No order ID received');
 
-    try {
-      // Ensure coordinates are available
-      final hasCoords = await _ensureUserLocation();
-      if (!hasCoords) {
-        throw Exception('Failed to determine delivery coordinates');
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('jwt_token');
-      if (token == null) throw Exception('Authentication token not found');
-
-      final cartProvider = Provider.of<CartProvider>(context, listen: false);
-      final orderItems = cartProvider.items.values.map((item) => item.toJson()).toList();
-
-      if (orderItems.any((i) => i['vendor'] == null)) {
-        throw Exception('Missing vendor info in cart');
-      }
-
-      final summary = _fullOrderSummary!;
-      final totalPrice = summary.totalPrice;
-
-      final requestBody = {
-        'orderItems': orderItems,
-        'shippingAddress': _useSavedAddress
-            ? _selectedAddress!.toJson()
-            : {
-                'address': _addressController.text.trim(),
-                'city': _cityController.text.trim(),
-                'postalCode': _postalCodeController.text.trim(),
-                'country': _countryController.text.trim(),
-              },
-        'paymentMethod': _selectedPaymentMethod,
-        'totalShippingPrice': summary.totalShippingPrice,
-        'totalPlatformFees': summary.totalPlatformFees,
-        'taxPrice': summary.taxPrice,
-        'totalPrice': totalPrice,
-        'userLocation': {
-          'latitude': _userLatitude,
-          'longitude': _userLongitude,
-        },
-        'shipmentSummaries': summary.shipmentSummaries.map((s) => s.toJson()).toList(),
-      };
-
-      // Create the order first
-      final createOrderUrl = Uri.parse('$baseUrl/api/orders');
-      final createOrderResp = await http.post(
-        createOrderUrl,
+    // Handle payment based on selected method
+    if (_selectedPaymentMethod == 'Wallet') {
+      final payUrl = Uri.parse('$baseUrl/api/orders/$orderId/pay/wallet');
+      final payResp = await http.put(
+        payUrl,
         headers: {
           'Content-Type': 'application/json; charset=UTF-8',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode(requestBody),
       );
 
-      final createOrderData = _safeJson(createOrderResp.body);
+      if (payResp.statusCode == 200) {
+        _successMessage = 'Order placed using Wallet!';
+        cartProvider.clearCart();
+        await _fetchAddressesAndWallet();
+        _showSnackBar(_successMessage!);
+        widget.onOrderSuccess();
+        if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+      } else {
+        final payData = _safeJson(payResp.body);
+        _errorMessage = payData['message'] ?? 'Wallet payment failed';
+        _showSnackBar(_errorMessage!, isError: true);
+      }
+    } else {
+      // External payment (Flutterwave)
+      final userEmail = prefs.getString('email') ?? 'customer@example.com';
+      final fullName = prefs.getString('fullName') ?? 'Test User';
+      final phone = prefs.getString('phoneNumber') ?? '08012345678';
 
-      if (createOrderResp.statusCode != 201) {
-        _errorMessage = createOrderData['message'] ?? 'Failed to place order';
+      final paymentService = PaymentService();
+      final chargeResponse = await paymentService.startFlutterwavePayment(
+        context: context,
+        amount: totalPrice,
+        email: userEmail,
+        name: fullName,
+        phoneNumber: phone,
+      );
+
+      if (chargeResponse == null) {
+        _errorMessage = 'Payment not initiated or cancelled';
         _showSnackBar(_errorMessage!, isError: true);
         return;
       }
 
-      final orderId = createOrderData['_id'] as String?;
-      if (orderId == null) throw Exception('No order ID received');
+      final txRef = chargeResponse.txRef;
+      final transactionId = chargeResponse.transactionId;
 
-      // Handle payment based on selected method
-      if (_selectedPaymentMethod == 'Wallet') {
-        final payUrl = Uri.parse('$baseUrl/api/orders/$orderId/pay/wallet');
-        final payResp = await http.put(
-          payUrl,
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer $token',
-          },
-        );
-
-        if (payResp.statusCode == 200) {
-          _successMessage = 'Order placed using Wallet!';
-          cartProvider.clearCart();
-          await _fetchAddressesAndWallet();
-          _showSnackBar(_successMessage!);
-          widget.onOrderSuccess();
-          if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-        } else {
-          final payData = _safeJson(payResp.body);
-          _errorMessage = payData['message'] ?? 'Wallet payment failed';
-          _showSnackBar(_errorMessage!, isError: true);
-        }
-      } else {
-        // External payment (Flutterwave)
-        final userEmail = prefs.getString('email') ?? 'customer@example.com';
-        final fullName = prefs.getString('fullName') ?? 'Test User';
-        final phone = prefs.getString('phoneNumber') ?? '08012345678';
-
-        final paymentService = PaymentService();
-        final chargeResponse = await paymentService.startFlutterwavePayment(
-          context: context,
-          amount: totalPrice,
-          email: userEmail,
-          name: fullName,
-          phoneNumber: phone,
-        );
-
-        if (chargeResponse == null) {
-          _errorMessage = 'Payment not initiated or cancelled';
-          _showSnackBar(_errorMessage!, isError: true);
-          return;
-        }
-
-        final fwStatus = (chargeResponse.status ?? '').toLowerCase();
-
-        if (fwStatus == 'cancelled') {
-          _errorMessage = 'Payment cancelled by user';
-          _showSnackBar(_errorMessage!);
-          return;
-        }
-
-        if (fwStatus != 'success') {
-          // Use the fixed helper method
-          final processorMsg = _getProcessorMessage(chargeResponse);
-          _errorMessage = 'Payment failed: $processorMsg';
-          _showSnackBar(_errorMessage!, isError: true);
-          print('Flutterwave failure: $processorMsg | Full response: ${chargeResponse.toJson()}');
-          return;
-        }
-
-        // Use txRef (preferred) or fallback to transactionId
-        final paymentRef = chargeResponse.txRef ?? chargeResponse.transactionId;
-
-        if (paymentRef == null || paymentRef.isEmpty) {
-          _errorMessage = 'Missing transaction reference';
-          _showSnackBar(_errorMessage!, isError: true);
-          return;
-        }
-
-        // Confirm payment with backend
-        final payUrl = Uri.parse('$baseUrl/api/orders/$orderId/pay');
-        final payResp = await http.put(
-          payUrl,
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({
-            'transaction_id': paymentRef,
-            'status': chargeResponse.status,
-            'update_time': DateTime.now().toIso8601String(),
-            'email_address': userEmail,
-          }),
-        );
-
-        if (payResp.statusCode == 200) {
-          _successMessage = 'Order placed and paid!';
-          cartProvider.clearCart();
-          _showSnackBar(_successMessage!);
-          widget.onOrderSuccess();
-          if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
-        } else {
-          final payData = _safeJson(payResp.body);
-          _errorMessage = payData['message'] ?? 'Payment confirmation failed';
-          _showSnackBar(_errorMessage!, isError: true);
-          print('Backend confirmation failed: ${payResp.statusCode} - ${payResp.body}');
-        }
+      if (txRef == null || txRef.trim().isEmpty) {
+        _errorMessage = 'Missing transaction reference – likely cancelled early';
+        _showSnackBar(_errorMessage!, isError: true);
+        print('No txRef → full ChargeResponse: ${chargeResponse.toJson()}');
+        return;
       }
-    } catch (e, stack) {
-      _errorMessage = 'Error: $e';
-      _showSnackBar('Failed to place order. Try again.', isError: true);
-      print('Place order error: $e\n$stack');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isPlacingOrder = false;
-          _isProcessingPayment = false;
-        });
+
+      // Log what we actually got from Flutterwave client-side
+      print('Flutterwave client response → txRef: $txRef | status: ${chargeResponse.status ?? "—"} | success: ${chargeResponse.success ?? "—"} | full: ${chargeResponse.toJson()}');
+
+      // Always try to confirm with backend when we have txRef
+      final paymentRef = txRef; // prefer txRef — more reliable from client
+
+      final payUrl = Uri.parse('$baseUrl/api/orders/$orderId/pay');
+      final payResp = await http.put(
+        payUrl,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'transaction_id': paymentRef,
+          'status': chargeResponse.status ?? 'unknown_from_client',
+          'update_time': DateTime.now().toIso8601String(),
+          'email_address': userEmail,
+        }),
+      );
+
+      if (payResp.statusCode == 200) {
+        // ────────────────────────────────────────────────────────────────
+        // PRODUCTION CHANGE: more honest / cautious message
+        // ────────────────────────────────────────────────────────────────
+        _successMessage = 'Order created — payment confirmation in progress. You will be notified shortly.';
+        cartProvider.clearCart();
+        _showSnackBar(_successMessage!);
+        widget.onOrderSuccess();
+        if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
+      } else {
+        final payData = _safeJson(payResp.body);
+        _errorMessage = payData['message'] ?? 'Payment confirmation failed';
+        _showSnackBar(_errorMessage!, isError: true);
+        print('Backend confirmation failed: ${payResp.statusCode} - ${payResp.body}');
       }
     }
+  } catch (e, stack) {
+    _errorMessage = 'Error: $e';
+    _showSnackBar('Failed to place order. Try again.', isError: true);
+    print('Place order error: $e\n$stack');
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _isPlacingOrder = false;
+        _isProcessingPayment = false;
+      });
+    }
   }
+}
+
+// ... (rest of the file remains 100% unchanged)
 
   @override
   Widget build(BuildContext context) {

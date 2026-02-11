@@ -25,8 +25,8 @@ android {
         applicationId = "com.naijago.naija_go"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 15
-        versionName = "1.0.1"
+        versionCode = 16
+        versionName = "1.0.3"
     }
 
     // Your keystore/signing logic...
