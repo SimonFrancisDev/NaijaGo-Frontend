@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 class OrderTrackingWidget extends StatelessWidget {
   final String orderStatus;
 
-  OrderTrackingWidget({
-    Key? key,
+  const OrderTrackingWidget({
+    super.key,
     required this.orderStatus,
-  }) : super(key: key);
+  });
 
   // 1. ⚠️ Backend Enums (MUST MATCH the Mongoose orderStatus field values)
   final List<String> statuses = const [
@@ -51,7 +51,7 @@ class OrderTrackingWidget extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
+          color: Colors.red.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Row(

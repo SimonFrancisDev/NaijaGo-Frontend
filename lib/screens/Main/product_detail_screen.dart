@@ -41,7 +41,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (widget.product.hasSizes && widget.product.availableSizes.isNotEmpty) {
       if (widget.product.isCustomDimensions) {
         final sizeData = widget.product.sizeData;
-        final customDimensions = sizeData?['customDimensions'] as List<dynamic>?;
+        final customDimensions =
+            sizeData?['customDimensions'] as List<dynamic>?;
         if (customDimensions != null && customDimensions.isNotEmpty) {
           _selectedSize = customDimensions.first;
         }
@@ -62,48 +63,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     super.dispose();
   }
 
-  String _getDisplaySize(dynamic sizeItem) {
-    if (sizeItem == null) return '';
-    
-    if (sizeItem is String) return sizeItem.trim();
-    
-    if (sizeItem is Map<String, dynamic>) {
-      final length = sizeItem['length']?.toString() ?? '0';
-      final width = sizeItem['width']?.toString() ?? '0';
-      final height = sizeItem['height']?.toString() ?? '0';
-      final unit = (sizeItem['unit'] as String?)?.toUpperCase() ?? 'CM';
-      final dynamic labelDynamic = sizeItem['label'];
-      final String label = labelDynamic?.toString() ?? '';
-      
-      if (label.isNotEmpty) {
-        return '$label ($length×$width×$height $unit)';
-      }
-      return '$length×$width×$height $unit';
-    }
-    
-    return sizeItem.toString().trim();
-  }
-
   String _getSizeShortDisplay(dynamic sizeItem) {
     if (sizeItem == null) return '';
-    
+
     if (sizeItem is String) return sizeItem.trim();
-    
+
     if (sizeItem is Map<String, dynamic>) {
       final dynamic labelDynamic = sizeItem['label'];
       final String label = labelDynamic?.toString() ?? '';
-      
+
       if (label.isNotEmpty) {
         return label;
       }
-      
+
       final length = sizeItem['length']?.toString() ?? '0';
       final width = sizeItem['width']?.toString() ?? '0';
       final height = sizeItem['height']?.toString() ?? '0';
-      
-      return '${length}×${width}×${height}';
+
+      return '$length×$width×$height';
     }
-    
+
     return sizeItem.toString().trim();
   }
 
@@ -111,7 +90,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (identical(a, b)) return true;
     if (a == null || b == null) return false;
     if (a.length != b.length) return false;
-    
+
     for (final key in a.keys) {
       if (!b.containsKey(key)) return false;
       if (a[key] != b[key]) return false;
@@ -147,14 +126,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<void> _fetchRelatedProducts() async {
     setState(() => _isLoadingRelated = true);
     try {
-      final String encodedCategory = Uri.encodeComponent(widget.product.category);
-      final Uri url = Uri.parse('$baseUrl/api/products?category=$encodedCategory');
+      final String encodedCategory = Uri.encodeComponent(
+        widget.product.category,
+      );
+      final Uri url = Uri.parse(
+        '$baseUrl/api/products?category=$encodedCategory',
+      );
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        final products = data.map((e) => Product.fromJson(e)).toList().cast<Product>();
+        final products = data
+            .map((e) => Product.fromJson(e))
+            .toList()
+            .cast<Product>();
         setState(() {
-          _relatedProducts = products.where((p) => p.id != widget.product.id).toList();
+          _relatedProducts = products
+              .where((p) => p.id != widget.product.id)
+              .toList();
           _isLoadingRelated = false;
         });
       } else {
@@ -169,6 +157,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<void> _toggleSaveProduct() async {
     setState(() => _isLoadingSave = true);
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final String? token = prefs.getString('jwt_token');
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -198,11 +187,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               body: jsonEncode({'productId': widget.product.id}),
             );
       final Map<String, dynamic> responseData = jsonDecode(response.body);
+      if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 201) {
         setState(() => _isSaved = !_isSaved);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(responseData['message'] ?? (_isSaved ? 'Product saved!' : 'Product unsaved.')),
+            content: Text(
+              responseData['message'] ??
+                  (_isSaved ? 'Product saved!' : 'Product unsaved.'),
+            ),
             backgroundColor: _isSaved ? Colors.green : Colors.orange,
           ),
         );
@@ -212,16 +205,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('An error occurred: $e')),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('An error occurred: $e')));
     } finally {
-      setState(() => _isLoadingSave = false);
+      if (mounted) {
+        setState(() => _isLoadingSave = false);
+      }
     }
   }
 
   Future<void> _submitReview() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final String? token = prefs.getString('jwt_token');
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -250,6 +247,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         }),
       );
       final responseData = jsonDecode(response.body);
+      if (!mounted) return;
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Review submitted successfully!')),
@@ -260,16 +258,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(responseData['message'] ?? 'Submission failed')),
+          SnackBar(
+            content: Text(responseData['message'] ?? 'Submission failed'),
+          ),
         );
       }
     } catch (e) {
       debugPrint('Review error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      setState(() => _isSubmittingReview = false);
+      if (mounted) {
+        setState(() => _isSubmittingReview = false);
+      }
     }
   }
 
@@ -289,7 +292,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     return PhotoViewGalleryPageOptions(
                       imageProvider: NetworkImage(allImages[index]),
                       initialScale: PhotoViewComputedScale.contained,
-                      heroAttributes: PhotoViewHeroAttributes(tag: 'image_$index'),
+                      heroAttributes: PhotoViewHeroAttributes(
+                        tag: 'image_$index',
+                      ),
                       minScale: PhotoViewComputedScale.contained * 0.8,
                       maxScale: PhotoViewComputedScale.covered * 3.0,
                     );
@@ -302,19 +307,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: CircularProgressIndicator(
                         value: event == null
                             ? 0
-                            : event.cumulativeBytesLoaded / (event.expectedTotalBytes ?? 1),
+                            : event.cumulativeBytesLoaded /
+                                  (event.expectedTotalBytes ?? 1),
                         color: Colors.white,
                       ),
                     ),
                   ),
-                  backgroundDecoration: const BoxDecoration(color: Colors.black),
+                  backgroundDecoration: const BoxDecoration(
+                    color: Colors.black,
+                  ),
                   pageController: PageController(initialPage: initialIndex),
                 ),
                 Positioned(
                   top: 16,
                   right: 16,
                   child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 32,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
@@ -354,7 +366,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               if (widget.product.sizeUnit.isNotEmpty) ...[
                 const SizedBox(width: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blueGrey[50],
                     borderRadius: BorderRadius.circular(12),
@@ -380,13 +395,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF0A2A66).withOpacity(0.08),
+                color: const Color(0xFF0A2A66).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF0A2A66).withOpacity(0.2)),
+                border: Border.all(
+                  color: const Color(0xFF0A2A66).withValues(alpha: 0.2),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle, color: Color(0xFF0A2A66), size: 20),
+                  const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF0A2A66),
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -427,20 +448,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               });
             },
             child: Container(
-              constraints: BoxConstraints(
-                minWidth: 70,
-                maxWidth: 120,
-              ),
+              constraints: BoxConstraints(minWidth: 70, maxWidth: 120),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isSelected ? const Color(0xFF0A2A66) : Colors.white,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isSelected ? const Color(0xFF0A2A66) : Colors.grey.shade400,
+                  color: isSelected
+                      ? const Color(0xFF0A2A66)
+                      : Colors.grey.shade400,
                   width: isSelected ? 2.5 : 1.5,
                 ),
                 boxShadow: isSelected
-                    ? [BoxShadow(color: const Color(0xFF0A2A66).withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 3))]
+                    ? [
+                        BoxShadow(
+                          color: const Color(
+                            0xFF0A2A66,
+                          ).withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
                     : null,
               ),
               child: Center(
@@ -480,11 +508,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 color: isSelected ? const Color(0xFF0A2A66) : Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isSelected ? const Color(0xFF0A2A66) : Colors.grey.shade400,
+                  color: isSelected
+                      ? const Color(0xFF0A2A66)
+                      : Colors.grey.shade400,
                   width: isSelected ? 2.5 : 1.5,
                 ),
                 boxShadow: isSelected
-                    ? [BoxShadow(color: const Color(0xFF0A2A66).withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 3))]
+                    ? [
+                        BoxShadow(
+                          color: const Color(
+                            0xFF0A2A66,
+                          ).withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ]
                     : null,
               ),
               child: Row(
@@ -495,7 +533,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : const Color(0xFF0A2A66),
+                      color: isSelected
+                          ? Colors.white
+                          : const Color(0xFF0A2A66),
                     ),
                   ),
                   if (isSelected) ...[
@@ -513,15 +553,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   bool _isSizeSelected(dynamic sizeItem) {
     if (_selectedSize == null) return false;
-    
+
     if (sizeItem is String && _selectedSize is String) {
       return sizeItem == _selectedSize;
     }
-    
-    if (sizeItem is Map<String, dynamic> && _selectedSize is Map<String, dynamic>) {
+
+    if (sizeItem is Map<String, dynamic> &&
+        _selectedSize is Map<String, dynamic>) {
       return _areMapsEqual(sizeItem, _selectedSize as Map<String, dynamic>);
     }
-    
+
     return false;
   }
 
@@ -548,7 +589,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -570,15 +611,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               children: [
                 TableRow(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0A2A66).withOpacity(0.08),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    color: const Color(0xFF0A2A66).withValues(alpha: 0.08),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
                   ),
                   children: const [
                     Padding(
                       padding: EdgeInsets.all(12),
                       child: Text(
                         'Variant',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0A2A66), fontSize: 13),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0A2A66),
+                          fontSize: 13,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -586,7 +633,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       padding: EdgeInsets.all(12),
                       child: Text(
                         'Length',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0A2A66), fontSize: 13),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0A2A66),
+                          fontSize: 13,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -594,7 +645,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       padding: EdgeInsets.all(12),
                       child: Text(
                         'Width',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0A2A66), fontSize: 13),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0A2A66),
+                          fontSize: 13,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -602,7 +657,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       padding: EdgeInsets.all(12),
                       child: Text(
                         'Height',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0A2A66), fontSize: 13),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0A2A66),
+                          fontSize: 13,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -610,7 +669,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       padding: EdgeInsets.all(12),
                       child: Text(
                         'Unit',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0A2A66), fontSize: 13),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0A2A66),
+                          fontSize: 13,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -620,16 +683,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   final index = entry.key;
                   final dim = entry.value as Map<String, dynamic>;
                   final dynamic labelDynamic = dim['label'];
-                  final variantLabel = labelDynamic?.toString() ?? 'V${index + 1}';
+                  final variantLabel =
+                      labelDynamic?.toString() ?? 'V${index + 1}';
                   final isSelected = _isSizeSelected(dim);
 
                   return TableRow(
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFF0A2A66).withOpacity(0.12)
+                          ? const Color(0xFF0A2A66).withValues(alpha: 0.12)
                           : index.isEven
-                              ? Colors.grey[50]
-                              : Colors.white,
+                          ? Colors.grey[50]
+                          : Colors.white,
                     ),
                     children: [
                       GestureDetector(
@@ -646,14 +710,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               if (isSelected)
                                 const Padding(
                                   padding: EdgeInsets.only(right: 6),
-                                  child: Icon(Icons.check_circle, color: Color(0xFF0A2A66), size: 16),
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    color: Color(0xFF0A2A66),
+                                    size: 16,
+                                  ),
                                 ),
                               Flexible(
                                 child: Text(
                                   variantLabel,
                                   style: TextStyle(
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                    color: isSelected ? const Color(0xFF0A2A66) : Colors.grey[800],
+                                    fontWeight: isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? const Color(0xFF0A2A66)
+                                        : Colors.grey[800],
                                     fontSize: 12,
                                   ),
                                   textAlign: TextAlign.center,
@@ -669,7 +741,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: Text(
                           dim['length']?.toString() ?? '-',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[800], fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey[800],
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                       Padding(
@@ -677,7 +752,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: Text(
                           dim['width']?.toString() ?? '-',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[800], fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey[800],
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                       Padding(
@@ -685,7 +763,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: Text(
                           dim['height']?.toString() ?? '-',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[800], fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey[800],
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                       Padding(
@@ -693,7 +774,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         child: Text(
                           (dim['unit'] as String?)?.toUpperCase() ?? 'CM',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.blueGrey[700], fontSize: 11),
+                          style: TextStyle(
+                            color: Colors.blueGrey[700],
+                            fontSize: 11,
+                          ),
                         ),
                       ),
                     ],
@@ -726,19 +810,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     if (widget.product.stockQuantity <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Product is out of stock'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Product is out of stock'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
     if (widget.product.hasSizes && _selectedSize == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a size first'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('Please select a size first'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
-    
+
     cartProvider.addProduct(widget.product, selectedSize: _selectedSize);
-    
+
     String? displaySize;
     if (_selectedSize != null) {
       if (_selectedSize is String) {
@@ -751,7 +841,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         final width = dim['width']?.toString() ?? '0';
         final height = dim['height']?.toString() ?? '0';
         final unit = (dim['unit'] as String?)?.toUpperCase() ?? 'CM';
-        
+
         if (label.isNotEmpty) {
           displaySize = '$label ($length×$width×$height $unit)';
         } else {
@@ -784,24 +874,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: isOutOfStock || needsSizeSelection ? null : () => _addToCart(context),
+                onPressed: isOutOfStock || needsSizeSelection
+                    ? null
+                    : () => _addToCart(context),
                 icon: const Icon(Icons.shopping_cart),
                 label: Text(
                   isOutOfStock
                       ? 'Out of Stock'
                       : needsSizeSelection
-                          ? 'Select Size First'
-                          : 'Add to Cart',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ? 'Select Size First'
+                      : 'Add to Cart',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isOutOfStock
                       ? Colors.grey
                       : needsSizeSelection
-                          ? Colors.orange
-                          : const Color(0xFF0A2A66),
+                      ? Colors.orange
+                      : const Color(0xFF0A2A66),
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   elevation: 8,
                 ),
               ),
@@ -824,17 +921,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           height: 350,
           width: double.infinity,
           decoration: BoxDecoration(
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(30),
+            ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 15,
                 offset: const Offset(0, 8),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(30),
+            ),
             child: Image.network(
               imageUrl,
               fit: BoxFit.cover,
@@ -842,7 +943,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 return Container(
                   color: Colors.grey[200],
                   child: Center(
-                    child: Icon(Icons.image_not_supported, size: 80, color: Colors.grey[600]),
+                    child: Icon(
+                      Icons.image_not_supported,
+                      size: 80,
+                      color: Colors.grey[600],
+                    ),
                   ),
                 );
               },
@@ -880,7 +985,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       width: 80,
                       height: 80,
                       color: Colors.grey[200],
-                      child: const Center(child: Icon(Icons.image_not_supported, size: 30, color: Colors.grey)),
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          size: 30,
+                          color: Colors.grey,
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -893,7 +1004,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   String _formatPrice(double price) {
-    final formatter = NumberFormat.currency(locale: 'en_NG', symbol: '₦', decimalDigits: 2);
+    final formatter = NumberFormat.currency(
+      locale: 'en_NG',
+      symbol: '₦',
+      decimalDigits: 2,
+    );
     return formatter.format(price);
   }
 
@@ -904,7 +1019,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       children: [
         Text(
           widget.product.name,
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: deepNavyBlue, letterSpacing: -0.5),
+          style: const TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: deepNavyBlue,
+            letterSpacing: -0.5,
+          ),
         ),
         const SizedBox(height: 8),
         Row(
@@ -913,16 +1033,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           children: [
             Text(
               _formatPrice(widget.product.price),
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.green),
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: Colors.green,
+              ),
             ),
             const SizedBox(width: 12),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
               child: Text(
                 widget.product.stockQuantity > 0 ? 'In Stock' : 'Out of Stock',
                 style: TextStyle(
-                  color: widget.product.stockQuantity > 0 ? Colors.green.shade700 : Colors.red.shade700,
+                  color: widget.product.stockQuantity > 0
+                      ? Colors.green.shade700
+                      : Colors.red.shade700,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 ),
@@ -945,12 +1074,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.category_outlined, size: 20, color: deepNavyBlue),
+                const Icon(
+                  Icons.category_outlined,
+                  size: 20,
+                  color: deepNavyBlue,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Category: ${widget.product.category}',
-                    style: const TextStyle(fontSize: 16, color: deepNavyBlue, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: deepNavyBlue,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -963,7 +1100,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 Expanded(
                   child: Text(
                     'Sold by: ${widget.product.vendorBusinessName ?? 'Unknown Vendor'}',
-                    style: const TextStyle(fontSize: 16, color: deepNavyBlue, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: deepNavyBlue,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -979,7 +1120,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0A2A66)),
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF0A2A66),
+        ),
       ),
     );
   }
@@ -1006,7 +1151,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _relatedProducts.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 16),
+              separatorBuilder: (context, index) => const SizedBox(width: 16),
               itemBuilder: (ctx, index) {
                 final related = _relatedProducts[index];
                 return _buildRelatedProductCard(related);
@@ -1015,99 +1160,127 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           );
   }
 
-
   Widget _buildRelatedProductCard(Product product) {
-  const Color deepNavyBlue = Color(0xFF0A2A66);
-  final imageUrl = product.imageUrls.isNotEmpty
-      ? product.imageUrls.first
-      : 'https://placehold.co/170x130/CCCCCC/000000?text=No+Image';
-  return GestureDetector(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(product: product, heroTag: 'product_${product.id}'),
-        ),
-      );
-    },
-    child: Container(
-      width: 170,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Hero(
-            tag: 'product_${product.id}',
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                imageUrl,
-                height: 130,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 130,
-                  color: Colors.grey[200],
-                  child: Center(child: Icon(Icons.image_not_supported, color: Colors.grey[600])),
-                ),
-              ),
+    const Color deepNavyBlue = Color(0xFF0A2A66);
+    final imageUrl = product.imageUrls.isNotEmpty
+        ? product.imageUrls.first
+        : 'https://placehold.co/170x130/CCCCCC/000000?text=No+Image';
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(
+              product: product,
+              heroTag: 'product_${product.id}',
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: deepNavyBlue),
+        );
+      },
+      child: Container(
+        width: 170,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Hero(
+              tag: 'product_${product.id}',
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatPrice(product.price),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.green),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
+                child: Image.network(
+                  imageUrl,
+                  height: 130,
                   width: double.infinity,
-                  height: 36,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProductDetailScreen(product: product, heroTag: 'product_${product.id}'),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: product.stockQuantity > 0 ? deepNavyBlue : Colors.grey,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      product.stockQuantity > 0 ? 'Add to Cart' : 'Out',
-                      style: const TextStyle(fontSize: 14),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 130,
+                    color: Colors.grey[200],
+                    child: Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: deepNavyBlue,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatPrice(product.price),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 36,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProductDetailScreen(
+                              product: product,
+                              heroTag: 'product_${product.id}',
+                            ),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: product.stockQuantity > 0
+                            ? deepNavyBlue
+                            : Colors.grey,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        product.stockQuantity > 0 ? 'Add to Cart' : 'Out',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildReviewForm() {
     return Card(
@@ -1139,8 +1312,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 hintText: 'Share your thoughts on this product...',
                 filled: true,
                 fillColor: Colors.grey[100],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -1151,12 +1330,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 onPressed: _isSubmittingReview ? null : _submitReview,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 46, 188, 131),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 2,
                 ),
                 child: _isSubmittingReview
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Submit Review', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Submit Review',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -1176,7 +1370,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         iconTheme: const IconThemeData(color: deepNavyBlue),
         title: Text(
           widget.product.name,
-          style: const TextStyle(color: deepNavyBlue, fontWeight: FontWeight.w600, fontSize: 16),
+          style: const TextStyle(
+            color: deepNavyBlue,
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -1185,11 +1383,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
               icon: _isLoadingSave
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border, color: deepNavyBlue),
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      _isSaved ? Icons.bookmark : Icons.bookmark_border,
+                      color: deepNavyBlue,
+                    ),
               onPressed: _isLoadingSave ? null : _toggleSaveProduct,
             ),
-          )
+          ),
         ],
       ),
       bottomNavigationBar: _buildBottomAddToCartButton(),

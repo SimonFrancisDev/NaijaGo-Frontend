@@ -24,7 +24,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
   final _orderIdCtrl = TextEditingController();
   final _messageCtrl = TextEditingController();
   bool _submitting = false;
-  List<_LocalAttachment> _attachments = [];
+  final List<_LocalAttachment> _attachments = [];
   String? _thumbUrl;
 
   late final ApiClient _client;
@@ -161,7 +161,7 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
                       ),
                       subtitle: Text(
                         '${(a.size / 1024).toStringAsFixed(1)} KB • ${a.contentType}',
-                        style: TextStyle(color: deepNavyBlue.withOpacity(0.6)),
+                        style: TextStyle(color: deepNavyBlue.withValues(alpha: 0.6)),
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.close, color: deepNavyBlue),
@@ -200,9 +200,9 @@ class _DisputeCreateScreenState extends State<DisputeCreateScreen> {
     return InputDecoration(
       labelText: labelText,
       labelStyle: const TextStyle(color: deepNavyBlue),
-      hintStyle: TextStyle(color: deepNavyBlue.withOpacity(0.6)),
+      hintStyle: TextStyle(color: deepNavyBlue.withValues(alpha: 0.6)),
       filled: true,
-      fillColor: deepNavyBlue.withOpacity(0.05),
+      fillColor: deepNavyBlue.withValues(alpha: 0.05),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: deepNavyBlue),

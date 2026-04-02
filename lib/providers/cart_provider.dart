@@ -14,8 +14,8 @@ class CartItem {
 
   Map<String, dynamic> toJson() {
 
-     print('CartItem.toJson() - selectedSize type: ${selectedSize.runtimeType}');
-      print('CartItem.toJson() - selectedSize value: $selectedSize');
+     debugPrint('CartItem.toJson() - selectedSize type: ${selectedSize.runtimeType}');
+      debugPrint('CartItem.toJson() - selectedSize value: $selectedSize');
 
     return {
       'product': product.id,
@@ -25,7 +25,7 @@ class CartItem {
           : 'https://placehold.co/100x100/CCCCCC/000000?text=No+Image',
       'quantity': quantity,
       'price': product.price,
-      'vendor': product.vendorId ?? 'unknown',
+      'vendor': product.vendorId,
       'selectedSize': selectedSize,
     };
   }
@@ -70,7 +70,7 @@ class CartProvider with ChangeNotifier {
       if (selectedSize is String) {
         sizeString = selectedSize;
       } else if (selectedSize is Map<String, dynamic>) {
-        final sizeMap = selectedSize as Map<String, dynamic>;
+        final sizeMap = selectedSize;
         final dynamic labelDynamic = sizeMap['label'];
         sizeString = labelDynamic?.toString() ?? 'custom';
       } else {
@@ -84,7 +84,7 @@ class CartProvider with ChangeNotifier {
         if (existingItem.quantity < product.stockQuantity) {
           existingItem.quantity++;
         } else {
-          print('Cannot add more. Max stock reached for ${product.name}');
+          debugPrint('Cannot add more. Max stock reached for ${product.name}');
         }
         return existingItem;
       });
@@ -99,7 +99,7 @@ class CartProvider with ChangeNotifier {
           ),
         );
       } else {
-        print('Product ${product.name} is out of stock.');
+        debugPrint('Product ${product.name} is out of stock.');
       }
     }
     notifyListeners();
@@ -112,7 +112,7 @@ class CartProvider with ChangeNotifier {
       if (selectedSize is String) {
         sizeString = selectedSize;
       } else if (selectedSize is Map<String, dynamic>) {
-        final sizeMap = selectedSize as Map<String, dynamic>;
+        final sizeMap = selectedSize;
         final dynamic labelDynamic = sizeMap['label'];
         sizeString = labelDynamic?.toString() ?? 'custom';
       } else {
@@ -153,7 +153,7 @@ class CartProvider with ChangeNotifier {
       if (selectedSize is String) {
         sizeString = selectedSize;
       } else if (selectedSize is Map<String, dynamic>) {
-        final sizeMap = selectedSize as Map<String, dynamic>;
+        final sizeMap = selectedSize;
         final dynamic labelDynamic = sizeMap['label'];
         sizeString = labelDynamic?.toString() ?? 'custom';
       } else {

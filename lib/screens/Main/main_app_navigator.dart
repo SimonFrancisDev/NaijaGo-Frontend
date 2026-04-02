@@ -1,78 +1,181 @@
-// lib/screens/Main/main_app_navigator.dart
+import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // For SystemChrome
-import 'package:provider/provider.dart'; // For accessing CartProvider
-import 'package:naija_go/providers/cart_provider.dart'; // Ensure correct path
-import 'package:naija_go/screens/Main/notifications_screen.dart'; // Import NotificationsScreen
-import 'package:naija_go/screens/Main/vendor_desist_confirmation_screen.dart'; // Import VendorDesistConfirmationScreen
-import 'package:naija_go/screens/vendor/add_product_screen.dart'; // Import AddProductScreen
-import 'package:naija_go/vendor/screens/vendor_registration_screen.dart'; // Import VendorRegistrationScreen
-
-// ADDED IMPORT: Needed to redirect unauthenticated users to login
-import 'package:naija_go/auth/screens/login_screen.dart';
-
-
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../../constants.dart'; // Import your base URL
-import 'dart:async'; // For Timer
-
-// Import your tab screens
-import 'HomeScreen.dart';
-import 'CartScreen.dart';
-import 'categories_screen.dart';
-import 'VendorScreen.dart';
-import 'account_screen.dart';
-
-// Import Ionicons for tab bar icons
 import 'package:ionicons/ionicons.dart';
+import 'package:naija_go/auth/screens/login_screen.dart';
+import 'package:naija_go/providers/cart_provider.dart';
+import 'package:naija_go/screens/Main/notifications_screen.dart';
+import 'package:naija_go/screens/vendor/add_product_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// New Widget to show when restricted content is accessed by guests
+import '../../constants.dart';
+import 'account_screen.dart';
+import 'cart_screen.dart';
+import 'categories_screen.dart'
+    hide
+        accentGreen,
+        borderGrey,
+        lightGrey,
+        primaryNavy,
+        secondaryBlack,
+        softGrey,
+        white;
+import 'home_screen.dart';
+import 'vendor_screen.dart';
+
+class AppUi {
+  static const Color primaryNavy = Color(0xFF102B5C);
+  static const Color deepNavy = Color(0xFF081A3A);
+  static const Color accentBlue = Color(0xFF3B82F6);
+  static const Color accentGreen = Color(0xFF16A34A);
+  static const Color dangerRed = Color(0xFFEF4444);
+
+  static const Color softGrey = Color(0xFFF5F7FB);
+  static const Color white = Colors.white;
+  static const Color secondaryBlack = Color(0xFF111827);
+  static const Color mutedText = Color(0xFF6B7280);
+  static const Color borderGrey = Color(0xFFE5E7EB);
+}
+
 class GuestPlaceholderScreen extends StatelessWidget {
   final String title;
   final String message;
   final VoidCallback onLoginTapped;
 
   const GuestPlaceholderScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.message,
     required this.onLoginTapped,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Ionicons.lock_closed_outline, size: 80, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.headlineMedium!.copyWith(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton.icon(
-              onPressed: onLoginTapped,
-              icon: const Icon(Ionicons.log_in),
-              label: const Text('Log In / Register'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+    return Container(
+      color: AppUi.softGrey,
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+              decoration: BoxDecoration(
+                color: AppUi.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppUi.deepNavy, AppUi.primaryNavy],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Ionicons.lock_closed_outline,
+                      color: Colors.white,
+                      size: 34,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppUi.secondaryBlack,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppUi.mutedText,
+                      fontSize: 14.5,
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F6FA),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.verified_user_outlined,
+                          size: 18,
+                          color: AppUi.primaryNavy,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Login gives you access to your cart, orders, account, and vendor features.',
+                            style: TextStyle(
+                              color: AppUi.mutedText,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: onLoginTapped,
+                      icon: const Icon(Ionicons.log_in_outline),
+                      label: const Text(
+                        'Log in / Register',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: AppUi.primaryNavy,
+                        foregroundColor: AppUi.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -82,20 +185,19 @@ class GuestPlaceholderScreen extends StatelessWidget {
 class MainAppNavigator extends StatefulWidget {
   final VoidCallback onLogout;
 
-  const MainAppNavigator({required this.onLogout, super.key});
+  const MainAppNavigator({super.key, required this.onLogout});
 
   @override
   State<MainAppNavigator> createState() => _MainAppNavigatorState();
 }
 
-class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBindingObserver {
-  int _selectedIndex = 0; // Current selected tab index
+class _MainAppNavigatorState extends State<MainAppNavigator>
+    with WidgetsBindingObserver {
+  int _selectedIndex = 0;
   bool _isLoading = false;
-  // NEW STATE: Tracks if the user is authenticated (token exists and is valid)
   bool _isLoggedIn = false;
-  String? _errorMessage; // Retained for actual API errors (e.g., 401, network failure)
+  String? _errorMessage;
 
-  // Data to be passed to VendorScreen
   bool _isApprovedVendor = false;
   String _vendorStatus = 'loading';
   DateTime? _rejectionDate;
@@ -112,7 +214,7 @@ class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBinding
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _fetchUserStatus(); // Initial data fetch
+    _fetchUserStatus();
   }
 
   @override
@@ -124,71 +226,54 @@ class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBinding
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      print('Flutter: App resumed, re-fetching user status in MainAppNavigator.');
-      _fetchUserStatus(); // Re-fetch data when app resumes
+      _fetchUserStatus();
     }
   }
-  
-  // New function to navigate to the LoginScreen
-  void _navigateToLogin() async {
-    // Navigate to the LoginScreen
-    final result = await Navigator.of(context).push(
+
+  Future<void> _navigateToLogin() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => LoginScreen(
-          // We pass a dummy onLoginSuccess callback here, but the actual 
-          // state change is handled by NaijaGoApp in main.dart if we navigate
-          // back from the login screen with a result.
           onLoginSuccess: () {
-            // After successful login, close the LoginScreen
             Navigator.of(context).pop();
-            // Re-fetch status to update UI and set _isLoggedIn to true
             _fetchUserStatus();
-            // Go to Account tab
-            _onItemTapped(4); 
+            _onItemTapped(4);
           },
         ),
       ),
     );
-    // If we return from the LoginScreen (via successful login or back button),
-    // we should re-check the status in case they logged in.
     _fetchUserStatus();
   }
 
-
-  // Helper to build the list of widgets dynamically based on current state
   List<Widget> get _widgetOptions {
-    // These are the screens that can be accessed by guests
-    Widget homeScreen = const HomeScreen();
-    Widget categoriesScreen = const CategoriesScreen();
+    const homeScreen = HomeScreen();
+    const categoriesScreen = CategoriesScreen(showAppBar: false);
 
-    // The Cart, Vendor, and Account tabs require authentication
-    Widget protectedCartScreen = GuestPlaceholderScreen(
+    final protectedCartScreen = GuestPlaceholderScreen(
       title: 'Shopping Cart',
-      message: 'Log in to view and manage your cart, wishlist, and orders.',
+      message: 'Log in to manage your cart, wishlist, and orders with ease.',
       onLoginTapped: _navigateToLogin,
     );
-    
-    Widget protectedVendorScreen = GuestPlaceholderScreen(
+
+    final protectedVendorScreen = GuestPlaceholderScreen(
       title: 'Vendor Access',
-      message: 'You must be logged in to apply to become a vendor or manage your store.',
+      message:
+          'Log in to apply as a vendor, manage your store, and track your business performance.',
       onLoginTapped: _navigateToLogin,
     );
 
-    Widget protectedAccountScreen = GuestPlaceholderScreen(
+    final protectedAccountScreen = GuestPlaceholderScreen(
       title: 'My Account',
-      message: 'Log in to view your profile, orders, and settings.',
+      message: 'Log in to view your profile, addresses, orders, and settings.',
       onLoginTapped: _navigateToLogin,
     );
-
 
     return <Widget>[
-      // Index 0: Home (Always Public)
       homeScreen,
-      // Index 1: Cart (Protected)
-      _isLoggedIn ? CartScreen(onOrderSuccess: _fetchUserStatus) : protectedCartScreen,
-      // Index 2: Categories (Always Public)
+      _isLoggedIn
+          ? CartScreen(onOrderSuccess: _fetchUserStatus)
+          : protectedCartScreen,
       categoriesScreen,
-      // Index 3: Vendor (Protected)
       _isLoggedIn
           ? VendorScreen(
               isApprovedVendor: _isApprovedVendor,
@@ -205,37 +290,30 @@ class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBinding
               onRefresh: _fetchUserStatus,
             )
           : protectedVendorScreen,
-      // Index 4: Account (Protected)
-      _isLoggedIn ? AccountScreen(onLogout: widget.onLogout) : protectedAccountScreen,
+      _isLoggedIn
+          ? AccountScreen(onLogout: widget.onLogout)
+          : protectedAccountScreen,
     ];
   }
 
-  // Function to fetch the current user's profile and vendor status
   Future<void> _fetchUserStatus() async {
-    if (_isLoading) {
-      print('Flutter: _fetchUserStatus() already loading in MainAppNavigator, returning.');
-      return;
-    }
+    if (_isLoading) return;
 
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      print('Flutter: MainAppNavigator _isLoading set to true.');
     });
 
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('jwt_token');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
 
-    // --- START: MODIFIED LOGIC FOR GUEST MODE ---
     if (token == null) {
-      print('Flutter: No token found. Running in unauthenticated (guest) mode.');
       setState(() {
-        _isLoggedIn = false; // Set authenticated state to false
+        _isLoggedIn = false;
         _isLoading = false;
-        _errorMessage = null; // CRITICAL: Clear error message to display HomeScreen
-        // Reset all protected/vendor data to safe defaults
+        _errorMessage = null;
         _isApprovedVendor = false;
-        _vendorStatus = 'guest'; 
+        _vendorStatus = 'guest';
         _vendorWalletBalance = 0.0;
         _appWalletBalance = 0.0;
         _userWalletBalance = 0.0;
@@ -245,15 +323,11 @@ class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBinding
         _followersCount = 0;
         _notifications = [];
       });
-      return; // Stop here, do not proceed with API calls
+      return;
     }
-    // --- END: MODIFIED LOGIC ---
-
 
     try {
-      // API Call 1: Fetch general user data (including vendor status)
-      final Uri userUrl = Uri.parse('$baseUrl/api/auth/me');
-      print('Flutter: MainAppNavigator attempting to fetch user status from URL: $userUrl');
+      final userUrl = Uri.parse('$baseUrl/api/auth/me');
       final userResponse = await http.get(
         userUrl,
         headers: <String, String>{
@@ -262,31 +336,33 @@ class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBinding
         },
       );
 
-      print('Flutter: MainAppNavigator received user response with status code: ${userResponse.statusCode}');
-
       if (userResponse.statusCode == 200) {
         final Map<String, dynamic> userData = jsonDecode(userResponse.body);
-        
-        final bool isApproved = userData['isVendor'] == true && userData['vendorStatus'] == 'approved';
-        final String status = userData['vendorStatus'] ?? 'none';
-        final double vendorBalance = (userData['vendorWalletBalance'] as num?)?.toDouble() ?? 0.0;
-        final double appBalance = (userData['appWalletBalance'] as num?)?.toDouble() ?? 0.0;
-        final double userBalance = (userData['userWalletBalance'] as num?)?.toDouble() ?? 0.0;
-        final DateTime? rejectionDate = (status == 'rejected' && userData['vendorRejectionDate'] != null)
+
+        final isApproved =
+            userData['isVendor'] == true &&
+            userData['vendorStatus'] == 'approved';
+
+        final status = userData['vendorStatus'] ?? 'none';
+        final vendorBalance =
+            (userData['vendorWalletBalance'] as num?)?.toDouble() ?? 0.0;
+        final appBalance =
+            (userData['appWalletBalance'] as num?)?.toDouble() ?? 0.0;
+        final userBalance =
+            (userData['userWalletBalance'] as num?)?.toDouble() ?? 0.0;
+        final rejectionDate =
+            (status == 'rejected' && userData['vendorRejectionDate'] != null)
             ? DateTime.parse(userData['vendorRejectionDate'])
             : null;
-        final List<dynamic> notifications = userData['notifications'] ?? [];
-        final int followers = userData['followersCount'] ?? 0;
-        
+        final notifications = userData['notifications'] ?? [];
+        final followers = userData['followersCount'] ?? 0;
+
         int totalProds = 0;
         int productsSold = 0;
         int productsUnsold = 0;
 
-        // API Call 2: If the user is an approved vendor, fetch real-time stats
         if (isApproved) {
-          print('User is an approved vendor. Fetching vendor stats.');
-          final Uri statsUrl = Uri.parse('$baseUrl/api/vendor/stats');
-          print('Flutter: Fetching vendor stats from URL: $statsUrl');
+          final statsUrl = Uri.parse('$baseUrl/api/vendor/stats');
           final statsResponse = await http.get(
             statsUrl,
             headers: <String, String>{
@@ -296,19 +372,17 @@ class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBinding
           );
 
           if (statsResponse.statusCode == 200) {
-            final Map<String, dynamic> statsData = jsonDecode(statsResponse.body);
+            final Map<String, dynamic> statsData = jsonDecode(
+              statsResponse.body,
+            );
             totalProds = statsData['totalProducts'] ?? 0;
             productsSold = statsData['productsSold'] ?? 0;
             productsUnsold = statsData['productsUnsold'] ?? 0;
-            print('Flutter: Vendor stats fetched successfully. Products Sold: $productsSold');
-          } else {
-            print('Flutter: Failed to fetch vendor stats. Status Code: ${statsResponse.statusCode}');
           }
         }
-        
-        // Use a single setState to update all variables at once
+
         setState(() {
-          _isLoggedIn = true; // Successfully authenticated
+          _isLoggedIn = true;
           _isApprovedVendor = isApproved;
           _vendorStatus = status;
           _vendorWalletBalance = vendorBalance;
@@ -320,54 +394,50 @@ class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBinding
           _totalProducts = totalProds;
           _productsSold = productsSold;
           _productsUnsold = productsUnsold;
-          print('Flutter: All vendor state variables updated.');
         });
-
       } else {
-        // If token exists but is invalid (e.g., 401), treat as logged out but set an error
         final responseData = jsonDecode(userResponse.body);
         setState(() {
-          _errorMessage = responseData['message'] ?? 'Failed to fetch user status.';
+          _errorMessage =
+              responseData['message'] ?? 'Failed to fetch user status.';
           _isLoggedIn = false;
           _isApprovedVendor = false;
           _vendorStatus = 'none';
         });
-        print('Flutter: MainAppNavigator failed to fetch user status. Status Code: ${userResponse.statusCode}, Message: ${responseData['message']}');
+
         if (userResponse.statusCode == 401) {
-          prefs.remove('jwt_token');
-          print('Flutter: Token invalid/expired, cleared from SharedPreferences.');
+          await prefs.remove('jwt_token');
         }
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred while fetching user status: $e';
+        _errorMessage = 'An error occurred while fetching user status.';
         _isLoggedIn = false;
         _isApprovedVendor = false;
         _vendorStatus = 'none';
       });
-      print('Flutter: MainAppNavigator fetch user status network error: $e');
+      debugPrint('MainAppNavigator fetch error: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-        print('Flutter: MainAppNavigator _isLoading set to false in finally block.');
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   String _getAppBarTitle(int index) {
     switch (index) {
       case 0:
-        return 'NaijaGo Home';
+        return 'NaijaGo';
       case 1:
-        return 'Your Cart';
+        return 'Cart';
       case 2:
-        return 'Product Categories';
+        return 'Categories';
       case 3:
-        // Only show vendor dashboard title if logged in and approved
-        if (!_isLoggedIn) return 'Vendor Section';
-        return _isApprovedVendor ? 'Vendor Dashboard' : 'Vendor Section';
+        return _isLoggedIn && _isApprovedVendor ? 'Vendor Dashboard' : 'Vendor';
       case 4:
-        return 'My Account';
+        return 'Account';
       default:
         return 'NaijaGo';
     }
@@ -379,61 +449,233 @@ class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBinding
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Define your deepNavyBlue color
-    const Color deepNavyBlue = Color(0xFF03024C);
-    
-    final color = Theme.of(context).colorScheme;
-    final cartProvider = Provider.of<CartProvider>(context);
-
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: color.surface,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: color.secondary,
-      systemNavigationBarIconBrightness: Brightness.light,
-    ));
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(
-          _getAppBarTitle(_selectedIndex),
-          style: const TextStyle(color: deepNavyBlue), // Changed title color
+  Widget _buildLoadingState() {
+    return Container(
+      color: AppUi.softGrey,
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(AppUi.primaryNavy),
+              ),
+            ),
+            SizedBox(height: 14),
+            Text(
+              'Loading your experience...',
+              style: TextStyle(
+                color: AppUi.mutedText,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
-        backgroundColor: color.surface,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: deepNavyBlue), // Added to color the back button
-        actionsIconTheme: const IconThemeData(color: deepNavyBlue), // Added to color actions icons
-        actions: [
-          // Cart Icon and Badge
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Container(
+      color: AppUi.softGrey,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+              decoration: BoxDecoration(
+                color: AppUi.white,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: AppUi.dangerRed.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: const Icon(
+                      Icons.error_outline_rounded,
+                      color: AppUi.dangerRed,
+                      size: 30,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Something went wrong',
+                    style: TextStyle(
+                      color: AppUi.secondaryBlack,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _errorMessage ?? 'Unable to load data right now.',
+                    style: const TextStyle(
+                      color: AppUi.mutedText,
+                      fontSize: 14.5,
+                      height: 1.6,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: _fetchUserStatus,
+                      style: ElevatedButton.styleFrom(
+                        elevation: 0,
+                        backgroundColor: AppUi.primaryNavy,
+                        foregroundColor: AppUi.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        'Try again',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(CartProvider cartProvider) {
+    final unreadCount = _notifications.where((n) => n['read'] == false).length;
+
+    return AppBar(
+      backgroundColor: AppUi.white,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      titleSpacing: 16,
+      title: Text(
+        _getAppBarTitle(_selectedIndex),
+        style: const TextStyle(
+          color: AppUi.secondaryBlack,
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.2,
+        ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+          height: 1,
+          color: AppUi.borderGrey.withValues(alpha: 0.7),
+        ),
+      ),
+      actions: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            IconButton(
+              icon: const Icon(
+                Ionicons.cart_outline,
+                color: AppUi.secondaryBlack,
+              ),
+              onPressed: () => _onItemTapped(1),
+            ),
+            if (cartProvider.itemCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppUi.dangerRed,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    cartProvider.itemCount.toString(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (_isApprovedVendor && _selectedIndex == 3)
           Stack(
+            clipBehavior: Clip.none,
             children: [
               IconButton(
-                icon: Icon(Ionicons.cart_outline, color: deepNavyBlue), // Changed cart icon color
-                onPressed: () {
-                  _onItemTapped(1); // Navigate to Cart tab
+                icon: const Icon(
+                  Icons.notifications_none_rounded,
+                  color: AppUi.secondaryBlack,
+                ),
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          NotificationsScreen(notifications: _notifications),
+                    ),
+                  );
+                  _fetchUserStatus();
                 },
               ),
-              if (cartProvider.itemCount > 0)
+              if (unreadCount > 0)
                 Positioned(
                   right: 8,
                   top: 8,
                   child: Container(
-                    padding: const EdgeInsets.all(2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
+                      color: AppUi.dangerRed,
+                      borderRadius: BorderRadius.circular(999),
                     ),
                     constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
+                      minWidth: 18,
+                      minHeight: 18,
                     ),
                     child: Text(
-                      cartProvider.itemCount.toString(),
+                      unreadCount.toString(),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
+                        fontWeight: FontWeight.w700,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -441,106 +683,118 @@ class _MainAppNavigatorState extends State<MainAppNavigator> with WidgetsBinding
                 ),
             ],
           ),
-          // Vendor Notifications Icon
-          if (_isApprovedVendor && _selectedIndex == 3)
-            Stack(
-              children: [
-                IconButton(
-                  icon: Icon(Icons.notifications, color: deepNavyBlue), // Changed notification icon color
-                  onPressed: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => NotificationsScreen(notifications: _notifications)),
-                    );
-                    _fetchUserStatus();
-                  },
-                ),
-                if (_notifications.any((n) => !n['read']))
-                  Positioned(
-                    right: 11,
-                    top: 11,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 14,
-                        minHeight: 14,
-                      ),
-                      child: Text(
-                        _notifications.where((n) => !n['read']).length.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
+        const SizedBox(width: 6),
+      ],
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppUi.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, -6),
+          ),
+        ],
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
+          elevation: 0,
+          backgroundColor: AppUi.white,
+          selectedItemColor: AppUi.primaryNavy,
+          unselectedItemColor: AppUi.mutedText,
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Icon(Ionicons.home_outline),
+              activeIcon: Icon(Ionicons.home),
+              label: 'Home',
             ),
-        ],
+            BottomNavigationBarItem(
+              icon: Icon(Ionicons.cart_outline),
+              activeIcon: Icon(Ionicons.cart),
+              label: 'Cart',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Ionicons.grid_outline),
+              activeIcon: Icon(Ionicons.grid),
+              label: 'Categories',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Ionicons.storefront_outline),
+              activeIcon: Icon(Ionicons.storefront),
+              label: 'Vendor',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Ionicons.person_outline),
+              activeIcon: Icon(Ionicons.person),
+              label: 'Account',
+            ),
+          ],
+        ),
       ),
-      body: Center(
-        child: _isLoading
-            ? CircularProgressIndicator(color: color.primary)
-            // Show the error message only if a real API/Token error occurred, 
-            // otherwise show the selected screen (which handles the 'guest' state)
-            : _errorMessage != null
-                ? Text(_errorMessage!, style: const TextStyle(color: Colors.red))
-                : _widgetOptions.elementAt(_selectedIndex),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cartProvider = Provider.of<CartProvider>(context);
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: AppUi.white,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: AppUi.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Ionicons.home_outline),
-            activeIcon: Icon(Ionicons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Ionicons.cart_outline),
-            activeIcon: Icon(Ionicons.cart),
-            label: 'Cart',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Ionicons.grid_outline),
-            activeIcon: Icon(Ionicons.grid),
-            label: 'Categories',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Ionicons.storefront_outline),
-            activeIcon: Icon(Ionicons.storefront),
-            label: 'Vendor',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Ionicons.person_outline),
-            activeIcon: Icon(Ionicons.person),
-            label: 'Account',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.lightGreenAccent,
-        unselectedItemColor: Colors.white,
-        onTap: _onItemTapped,
-        backgroundColor: color.primary,
-        type: BottomNavigationBarType.fixed,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
-      ),
+    );
+
+    return Scaffold(
+      backgroundColor: AppUi.softGrey,
+      appBar: _buildAppBar(cartProvider),
+      body: _isLoading
+          ? _buildLoadingState()
+          : _errorMessage != null
+          ? _buildErrorState()
+          : _widgetOptions.elementAt(_selectedIndex),
+      bottomNavigationBar: _buildBottomNav(),
       floatingActionButton: _selectedIndex == 3 && _isApprovedVendor
           ? FloatingActionButton.extended(
               onPressed: () async {
                 await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const AddProductScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const AddProductScreen(),
+                  ),
                 );
                 _fetchUserStatus();
               },
-              label: Text('Add Product', style: TextStyle(color: color.onPrimary)),
-              icon: Icon(Icons.add, color: color.onPrimary),
-              backgroundColor: color.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.0)),
-              elevation: 4,
+              backgroundColor: AppUi.primaryNavy,
+              foregroundColor: AppUi.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text(
+                'Add Product',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,

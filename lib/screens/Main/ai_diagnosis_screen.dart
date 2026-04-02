@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AiDiagnosisScreen extends StatefulWidget {
   const AiDiagnosisScreen({super.key});
@@ -132,7 +131,7 @@ class _AiDiagnosisScreenState extends State<AiDiagnosisScreen> {
                     ? Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: primaryColor.withOpacity(0.05),
+                          color: primaryColor.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -155,3 +154,4 @@ class _AiDiagnosisScreenState extends State<AiDiagnosisScreen> {
     );
   }
 }
+

@@ -1,18 +1,20 @@
 // lib/main.dart
 
+import 'dart:async';
+import 'dart:convert'; // For json.decode()
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http; // For http requests
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
-import 'dart:convert'; // For json.decode()
-import 'package:http/http.dart' as http; // For http requests
 
-
+import './auth/screens/registration_screen.dart';
 import 'providers/cart_provider.dart';
 import './screens/Main/main_app_navigator.dart';
-import './auth/screens/login_screen.dart';
-import './SplashScreen.dart';
+import './splash_screen.dart';
 
 const Color _lightPrimaryColor = Color.fromARGB(255, 3, 2, 76);
 const Color _lightSecondaryColor = Color(0xFFADFF2F);
@@ -22,6 +24,7 @@ const Color _darkPrimaryColor = Color.fromARGB(255, 144, 202, 249);
 const Color _darkSecondaryColor = Color(0xFF64FFDA);
 const Color _darkBackgroundColor = Color(0xFF121212);
 const Color _darkSurfaceColor = Color(0xFF1E1E1E);
+final GlobalKey<NavigatorState> _appNavigatorKey = GlobalKey<NavigatorState>();
 
 final ThemeData _lightTheme = ThemeData(
   useMaterial3: true,
@@ -37,8 +40,6 @@ final ThemeData _lightTheme = ThemeData(
     onPrimary: Colors.white,
     secondary: _lightSecondaryColor,
     onSecondary: _lightPrimaryColor,
-    background: Colors.white,
-    onBackground: _lightPrimaryColor,
     surface: Colors.white,
     onSurface: _lightPrimaryColor,
     error: Colors.red,
@@ -62,8 +63,8 @@ final ThemeData _lightTheme = ThemeData(
     ),
   ),
   iconTheme: const IconThemeData(color: _lightPrimaryColor),
-  splashColor: _lightSecondaryColor.withOpacity(0.5),
-  highlightColor: _lightSecondaryColor.withOpacity(0.3),
+  splashColor: _lightSecondaryColor.withValues(alpha: 0.5),
+  highlightColor: _lightSecondaryColor.withValues(alpha: 0.3),
   fontFamily: 'Roboto',
 );
 
@@ -82,8 +83,6 @@ final ThemeData _darkTheme = ThemeData(
     onPrimary: _darkBackgroundColor,
     secondary: _darkSecondaryColor,
     onSecondary: _darkBackgroundColor,
-    background: _darkBackgroundColor,
-    onBackground: Colors.white,
     surface: _darkSurfaceColor,
     onSurface: Colors.white,
     error: Colors.redAccent,
@@ -106,25 +105,25 @@ final ThemeData _darkTheme = ThemeData(
     ),
   ),
   iconTheme: const IconThemeData(color: Colors.white),
-  splashColor: _darkSecondaryColor.withOpacity(0.5),
-  highlightColor: _darkSecondaryColor.withOpacity(0.3),
+  splashColor: _darkSecondaryColor.withValues(alpha: 0.5),
+  highlightColor: _darkSecondaryColor.withValues(alpha: 0.3),
   fontFamily: 'Roboto',
 );
 
 class ThemeChanger extends StatefulWidget {
   final Widget child;
 
-  const ThemeChanger({Key? key, required this.child}) : super(key: key);
+  const ThemeChanger({super.key, required this.child});
 
   @override
-  State<ThemeChanger> createState() => _ThemeChangerState();
+  State<ThemeChanger> createState() => ThemeChangerState();
 
-  static _ThemeChangerState of(BuildContext context) {
-    return context.findAncestorStateOfType<_ThemeChangerState>()!;
+  static ThemeChangerState of(BuildContext context) {
+    return context.findAncestorStateOfType<ThemeChangerState>()!;
   }
 }
 
-class _ThemeChangerState extends State<ThemeChanger> {
+class ThemeChangerState extends State<ThemeChanger> {
   ThemeMode _themeMode = ThemeMode.system;
 
   @override
@@ -156,6 +155,7 @@ class _ThemeChangerState extends State<ThemeChanger> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _appNavigatorKey,
       themeMode: _themeMode,
       theme: _lightTheme,
       darkTheme: _darkTheme,
@@ -165,7 +165,7 @@ class _ThemeChangerState extends State<ThemeChanger> {
 }
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -192,23 +192,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isDarkMode = value;
     });
 
-    ThemeChanger.of(context).changeTheme(value ? ThemeMode.dark : ThemeMode.light);
+    ThemeChanger.of(
+      context,
+    ).changeTheme(value ? ThemeMode.dark : ThemeMode.light);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
           ListTile(
             title: const Text('Dark Mode'),
-            trailing: Switch(
-              value: _isDarkMode,
-              onChanged: _onToggleTheme,
-            ),
+            trailing: Switch(value: _isDarkMode, onChanged: _onToggleTheme),
           ),
           const Divider(),
         ],
@@ -225,17 +222,26 @@ class NaijaGoApp extends StatefulWidget {
 }
 
 class _NaijaGoAppState extends State<NaijaGoApp> {
-  late Future<bool> _isLoggedInFuture; 
+  final AppLinks _appLinks = AppLinks();
+  late Future<bool> _isLoggedInFuture;
+  StreamSubscription<Uri>? _referralLinkSubscription;
   bool _showSplash = true;
+  bool _hasAttemptedNotificationPrompt = false;
+  String? _pendingReferralCode;
+  String? _lastHandledReferralCode;
 
   @override
   void initState() {
     super.initState();
     _initializeOneSignal();
+    _initializeReferralLinks();
     _isLoggedInFuture = _checkLoginStatus();
-    
-    // CRITICAL FIX: Request permission here, not in main()
-    OneSignal.Notifications.requestPermission(true);
+  }
+
+  @override
+  void dispose() {
+    _referralLinkSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _initializeOneSignal() async {
@@ -243,20 +249,130 @@ class _NaijaGoAppState extends State<NaijaGoApp> {
     _setupUserTracking();
   }
 
+  Future<void> _maybeRequestNotificationPermission() async {
+    if (_hasAttemptedNotificationPrompt) {
+      return;
+    }
+
+    _hasAttemptedNotificationPrompt = true;
+
+    try {
+      final canRequest = await OneSignal.Notifications.canRequest();
+      if (!canRequest || !mounted) {
+        return;
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted) {
+        return;
+      }
+
+      await OneSignal.Notifications.requestPermission(false);
+    } catch (error) {
+      debugPrint('Unable to request OneSignal permission: $error');
+    }
+  }
+
+  Future<void> _initializeReferralLinks() async {
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      _queueReferralCodeFromUri(initialUri);
+    } catch (error) {
+      debugPrint('Unable to read initial referral link: $error');
+    }
+
+    _referralLinkSubscription = _appLinks.uriLinkStream.listen(
+      _queueReferralCodeFromUri,
+      onError: (Object error) {
+        debugPrint('Unable to listen for referral links: $error');
+      },
+    );
+  }
+
+  void _queueReferralCodeFromUri(Uri? uri) {
+    final referralCode = _extractReferralCode(uri);
+    if (referralCode == null || referralCode.isEmpty) {
+      return;
+    }
+    if (_pendingReferralCode == referralCode ||
+        _lastHandledReferralCode == referralCode) {
+      return;
+    }
+
+    _pendingReferralCode = referralCode;
+    _openPendingReferralSignupIfReady();
+  }
+
+  String? _extractReferralCode(Uri? uri) {
+    if (uri == null) {
+      return null;
+    }
+
+    final rawCode =
+        uri.queryParameters['ref'] ??
+        uri.queryParameters['referralCode'] ??
+        uri.queryParameters['inviteCode'] ??
+        uri.queryParameters['code'];
+    if (rawCode == null || rawCode.trim().isEmpty) {
+      return null;
+    }
+
+    final normalizedCode = rawCode
+        .trim()
+        .replaceAll(RegExp(r'[^A-Za-z0-9]'), '')
+        .toUpperCase();
+
+    return normalizedCode.isEmpty ? null : normalizedCode;
+  }
+
+  Future<void> _openPendingReferralSignupIfReady() async {
+    final referralCode = _pendingReferralCode;
+    if (!mounted ||
+        _showSplash ||
+        referralCode == null ||
+        referralCode.isEmpty) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    if (!mounted) {
+      return;
+    }
+    if (token != null && token.isNotEmpty) {
+      _pendingReferralCode = null;
+      return;
+    }
+
+    final navigator = _appNavigatorKey.currentState;
+    if (navigator == null) {
+      return;
+    }
+
+    _pendingReferralCode = null;
+    _lastHandledReferralCode = referralCode;
+
+    await navigator.push(
+      MaterialPageRoute(
+        builder: (_) => RegistrationScreen(initialReferralCode: referralCode),
+      ),
+    );
+  }
+
   void _setupNotificationClickHandler() {
     OneSignal.Notifications.addClickListener((event) {
       final notification = event.notification;
       final additionalData = notification.additionalData;
-      
+
       if (additionalData != null) {
-        print('Notification clicked with data: $additionalData');
-        
+        debugPrint('Notification clicked with data: $additionalData');
+
         if (additionalData['product_id'] != null) {
-          print('Navigate to product: ${additionalData['product_id']}');
+          debugPrint('Navigate to product: ${additionalData['product_id']}');
         }
-        
+
         if (additionalData['type'] == 'abandoned_cart') {
-          print('Navigate to cart');
+          debugPrint('Navigate to cart');
         }
       }
     });
@@ -265,13 +381,13 @@ class _NaijaGoAppState extends State<NaijaGoApp> {
   Future<void> _setupUserTracking() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');
-    
+
     if (token != null) {
       final userData = await _getUserDataFromBackend(token);
       if (userData != null) {
         // SDK v5.x FIX: Changed from setExternalUserId() to login()
         await OneSignal.login(userData['id']);
-        
+
         await OneSignal.User.addTags({
           'user_id': userData['id'],
           'email': userData['email'],
@@ -301,7 +417,6 @@ class _NaijaGoAppState extends State<NaijaGoApp> {
     }
   }
 
-
   Future<bool> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token');
@@ -311,6 +426,10 @@ class _NaijaGoAppState extends State<NaijaGoApp> {
   void handleSplashFinished() {
     setState(() {
       _showSplash = false;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _openPendingReferralSignupIfReady();
+      _maybeRequestNotificationPermission();
     });
   }
 
@@ -325,10 +444,10 @@ class _NaijaGoAppState extends State<NaijaGoApp> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('jwt_token');
     await prefs.remove('order_count');
-    
+
     // SDK v5.x FIX: Changed from removeExternalUserId() to logout()
     await OneSignal.logout();
-    
+
     setState(() {
       _isLoggedInFuture = Future.value(false);
     });
@@ -341,9 +460,7 @@ class _NaijaGoAppState extends State<NaijaGoApp> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
@@ -362,8 +479,14 @@ class _NaijaGoAppState extends State<NaijaGoApp> {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  print("🚀 App starting...");
 
-  await dotenv.load(fileName: ".env");
+  try {
+    await dotenv.load(fileName: ".env");
+    print("✅ .env loaded successfully");
+  } catch (e) {
+    print("❌ Error loading .env: $e");
+  }
 
   // Initialize OneSignal early (before runApp)
   OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
@@ -373,12 +496,8 @@ Future<void> main() async {
 
   runApp(
     MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => CartProvider()),
-      ],
-      child: const ThemeChanger(
-        child: NaijaGoApp(),
-      ),
+      providers: [ChangeNotifierProvider(create: (_) => CartProvider())],
+      child: const ThemeChanger(child: NaijaGoApp()),
     ),
   );
 }

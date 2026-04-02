@@ -8,12 +8,20 @@ import '../../models/user.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutterwave_standard/flutterwave.dart';
 import 'package:uuid/uuid.dart';
-import 'WithdrawalScreen.dart';
+import 'withdrawal_screen.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/tech_glow_background.dart';
 
 // Color constants
-const Color deepNavyBlue = Color(0xFF000080);
-const Color greenYellow = Color(0xFFADFF2F);
+const Color deepNavyBlue = AppTheme.primaryNavy;
+const Color greenYellow = Colors.white;
 const Color whiteBackground = Colors.white;
+const Color secondaryBlack = AppTheme.secondaryBlack;
+const Color borderGrey = AppTheme.borderGrey;
+const Color mutedText = AppTheme.mutedText;
+const Color softGrey = AppTheme.softGrey;
+const Color brandSoftText = Color(0xFFF4F8FF);
+const Color brandMutedText = Color(0xFFD5E0F2);
 
 class MyWalletScreen extends StatefulWidget {
   const MyWalletScreen({super.key});
@@ -102,48 +110,20 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
       if (response.statusCode == 200) {
         await Future.delayed(const Duration(seconds: 1));
         await _fetchWalletBalance();
-        _showSnack('Payment verified and wallet credited! Your balance has been updated.');
+        _showSnack(
+          'Payment verified and wallet credited! Your balance has been updated.',
+        );
       } else {
         final errorData = jsonDecode(response.body);
         final errorMessage = errorData['message'] ?? 'Unknown error occurred.';
         _showSnack('Verification failed: $errorMessage');
-        debugPrint('Verification failed with status code ${response.statusCode}: ${response.body}');
+        debugPrint(
+          'Verification failed with status code ${response.statusCode}: ${response.body}',
+        );
       }
     } catch (e) {
       _showSnack('An error occurred while communicating with the server.');
       debugPrint('Error verifying transaction: $e');
-    }
-  }
-
-  Future<List<Map<String, String>>> _fetchBanks() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('jwt_token');
-
-      if (token == null) {
-        debugPrint('Authentication token not found. Cannot fetch banks.');
-        return [];
-      }
-
-      final backendResp = await http.get(
-        Uri.parse('$baseUrl/api/wallet/banks'),
-        headers: _authHeaders(token),
-      );
-
-      if (backendResp.statusCode == 200) {
-        final parsed = jsonDecode(backendResp.body);
-        final List data = parsed['banks'] ?? [];
-        return data.map<Map<String, String>>((b) => {
-              'name': b['name'].toString(),
-              'code': b['code'].toString(),
-            }).toList();
-      } else {
-        debugPrint('Backend bank list error: ${backendResp.statusCode} ${backendResp.body}');
-        return [];
-      }
-    } catch (e) {
-      debugPrint('Error fetching banks: $e');
-      return [];
     }
   }
 
@@ -164,7 +144,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
       final userData = jsonDecode(userJson);
       userEmail = userData['email'] ?? '';
     }
-    
+
     if (userEmail.isEmpty) {
       _showSnack('User email not found. Please log in again.');
       return;
@@ -176,7 +156,8 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
       return;
     }
 
-    final bool isTestMode = (dotenv.env['FLUTTERWAVE_TEST_MODE'] ?? 'true') == 'true';
+    final bool isTestMode =
+        (dotenv.env['FLUTTERWAVE_TEST_MODE'] ?? 'true') == 'true';
     final txRef = 'FLW_${const Uuid().v4()}';
 
     final flutterwave = Flutterwave(
@@ -192,9 +173,10 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
     );
 
     try {
-      final ChargeResponse? response = await flutterwave.charge(context);
+      if (!mounted) return;
+      final ChargeResponse response = await flutterwave.charge(context);
 
-      if (response != null && response.success == true) {
+      if (response.success == true) {
         _amountController.clear();
         await _verifyTransactionOnBackend(txRef);
       } else {
@@ -212,8 +194,10 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Enter the amount you wish to add to your wallet.',
-              style: TextStyle(color: deepNavyBlue)),
+          const Text(
+            'Enter the amount you wish to add to your wallet.',
+            style: TextStyle(color: deepNavyBlue),
+          ),
           const SizedBox(height: 20),
           TextField(
             controller: _amountController,
@@ -226,9 +210,7 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
       onConfirm: _handleFlutterwaveTopUp,
     );
   }
-  
-  // -------------------- START OF UPDATED CODE --------------------
-  
+
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     final savedCredentialsJson = prefs.getStringList('saved_bank_credentials');
@@ -240,83 +222,6 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
       });
     }
   }
-
-  Future<void> _saveBankCredentials(Map<String, String> credentials) async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedCredentialsJson = _savedBankCredentials.map((e) => jsonEncode(e)).toList();
-    final isDuplicate = savedCredentialsJson.any((e) => e.contains(credentials['account_number']!));
-    if (!isDuplicate) {
-      savedCredentialsJson.add(jsonEncode(credentials));
-      await prefs.setStringList('saved_bank_credentials', savedCredentialsJson);
-      await _loadSavedCredentials();
-    }
-  }
-  Future<Map<String, String>?> _showBankSelectionDialog(List<Map<String, String>> banks) {
-    final TextEditingController searchController = TextEditingController();
-    List<Map<String, String>> filteredBanks = banks;
-
-    return showDialog<Map<String, String>?>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              backgroundColor: whiteBackground,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              title: const Text('Select Bank', style: TextStyle(color: deepNavyBlue)),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: searchController,
-                      decoration: _inputDecoration('Search for a bank...'),
-                      onChanged: (query) {
-                        setState(() {
-                          if (query.isEmpty) {
-                            filteredBanks = banks;
-                          } else {
-                            filteredBanks = banks
-                                .where((bank) =>
-                                    bank['name']!.toLowerCase().contains(query.toLowerCase()))
-                                .toList();
-                          }
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    Expanded(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: filteredBanks.length,
-                        itemBuilder: (context, index) {
-                          final bank = filteredBanks[index];
-                          return Card(
-                            elevation: 2,
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            child: ListTile(
-                              title: Text(bank['name']!, style: const TextStyle(color: deepNavyBlue)),
-                              onTap: () {
-                                Navigator.pop(context, bank);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-  
-  // -------------------- END OF UPDATED CODE --------------------
 
   void _showAddPaymentMethodDialog() {
     _showCustomDialog(
@@ -330,18 +235,26 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: whiteBackground,
-      appBar: AppBar(
-        title: const Text('My Wallet & Payments', style: TextStyle(color: greenYellow)),
-        backgroundColor: deepNavyBlue,
-        iconTheme: const IconThemeData(color: greenYellow),
+    return TechGlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text(
+            'My Wallet & Payments',
+            style: TextStyle(color: brandSoftText),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: brandSoftText),
+        ),
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: whiteBackground),
+              )
+            : _errorMessage != null
+            ? _buildErrorUI()
+            : _buildWalletUI(),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: deepNavyBlue))
-          : _errorMessage != null
-              ? _buildErrorUI()
-              : _buildWalletUI(),
     );
   }
 
@@ -352,16 +265,19 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, color: deepNavyBlue, size: 50),
+            const Icon(Icons.error_outline, color: whiteBackground, size: 50),
             const SizedBox(height: 10),
-            Text(_errorMessage!, textAlign: TextAlign.center,
-                style: const TextStyle(color: deepNavyBlue, fontSize: 16)),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: whiteBackground, fontSize: 16),
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _fetchWalletBalance,
               style: ElevatedButton.styleFrom(
                 backgroundColor: deepNavyBlue,
-                foregroundColor: greenYellow,
+                foregroundColor: whiteBackground,
               ),
               child: const Text('Retry'),
             ),
@@ -374,56 +290,79 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
   Widget _buildWalletUI() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _walletBalanceCard(),
-        const SizedBox(height: 35),
-        _linkedPaymentMethodsCard(),
-        const SizedBox(height: 35),
-        _transactionHistoryCard(),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _walletBalanceCard(),
+          const SizedBox(height: 35),
+          _linkedPaymentMethodsCard(),
+          const SizedBox(height: 35),
+          _transactionHistoryCard(),
+        ],
+      ),
     );
   }
 
   Widget _walletBalanceCard() {
     return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      color: deepNavyBlue,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: borderGrey),
+      ),
+      color: whiteBackground,
       child: Padding(
         padding: const EdgeInsets.all(25),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Current Wallet Balance',
-                style: TextStyle(color: whiteBackground, fontSize: 19)),
+            const Text(
+              'Current Wallet Balance',
+              style: TextStyle(
+                color: mutedText,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 12),
-            Text('₦${_userWalletBalance.toStringAsFixed(2)}',
-                style: const TextStyle(
-                    color: greenYellow,
-                    fontSize: 44,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              '₦${_userWalletBalance.toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: deepNavyBlue,
+                fontSize: 44,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 25),
-            Row(children: [
-              Expanded(child: _actionButton('Top Up', Icons.add_circle_outline, _showTopUpDialog)),
-              const SizedBox(width: 10),
-              Expanded(
-  child: _actionButton(
-    'Withdraw',
-    Icons.remove_circle_outline,
-    () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => WithdrawScreen(
-            userWalletBalance: _userWalletBalance,
-            savedBankCredentials: _savedBankCredentials,
-          ),
-        ),
-      );
-    },
-  ),
-),
-
-            ]),
+            Row(
+              children: [
+                Expanded(
+                  child: _actionButton(
+                    'Top Up',
+                    Icons.add_circle_outline,
+                    _showTopUpDialog,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _actionButton(
+                    'Withdraw',
+                    Icons.remove_circle_outline,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => WithdrawScreen(
+                            userWalletBalance: _userWalletBalance,
+                            savedBankCredentials: _savedBankCredentials,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -432,35 +371,69 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
 
   Widget _linkedPaymentMethodsCard() {
     return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: const BorderSide(color: borderGrey),
+      ),
       color: whiteBackground,
-      child: Column(children: [
-        ListTile(
-          leading: const Icon(Icons.credit_card, color: deepNavyBlue),
-          title: const Text('No payment methods linked yet.', style: TextStyle(color: deepNavyBlue)),
-          subtitle: Text('Add a card or bank account for faster checkouts.',
-              style: TextStyle(color: deepNavyBlue.withOpacity(0.7)))),
-        const Divider(color: deepNavyBlue),
-        ListTile(
-          leading: const Icon(Icons.add_card, color: greenYellow),
-          title: const Text('Add New Payment Method', style: TextStyle(color: deepNavyBlue)),
-          trailing: const Icon(Icons.arrow_forward_ios, size: 18, color: greenYellow),
-          onTap: _showAddPaymentMethodDialog,
-        ),
-      ]),
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.credit_card, color: deepNavyBlue),
+            title: const Text(
+              'No payment methods linked yet.',
+              style: TextStyle(
+                color: secondaryBlack,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            subtitle: Text(
+              'Add a card or bank account for faster checkouts.',
+              style: const TextStyle(color: mutedText),
+            ),
+          ),
+          const Divider(color: borderGrey),
+          ListTile(
+            leading: const Icon(Icons.add_card, color: deepNavyBlue),
+            title: const Text(
+              'Add New Payment Method',
+              style: TextStyle(
+                color: secondaryBlack,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              size: 18,
+              color: deepNavyBlue,
+            ),
+            onTap: _showAddPaymentMethodDialog,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _transactionHistoryCard() {
     return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: const BorderSide(color: borderGrey),
+      ),
       color: whiteBackground,
       child: ListTile(
         leading: const Icon(Icons.history, color: deepNavyBlue),
-        title: const Text('View all your transactions', style: TextStyle(color: deepNavyBlue)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 18, color: greenYellow),
+        title: const Text(
+          'View all your transactions',
+          style: TextStyle(color: secondaryBlack, fontWeight: FontWeight.w700),
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 18,
+          color: deepNavyBlue,
+        ),
         onTap: () => _showSnack('Transaction history coming soon!'),
       ),
     );
@@ -468,33 +441,40 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
 
   void _setLoading(bool value) => setState(() => _isLoading = value);
   void _setError(String message) => setState(() => _errorMessage = message);
-  void _setBalance(double balance) => setState(() => _userWalletBalance = balance);
+  void _setBalance(double balance) =>
+      setState(() => _userWalletBalance = balance);
 
   Map<String, String> _authHeaders(String token) => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
 
   InputDecoration _inputDecoration(String label) => InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: deepNavyBlue),
-        enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: deepNavyBlue),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: greenYellow, width: 2),
-          borderRadius: BorderRadius.circular(10),
-        ),
-      );
+    labelText: label,
+    labelStyle: const TextStyle(color: mutedText),
+    filled: true,
+    fillColor: softGrey,
+    enabledBorder: OutlineInputBorder(
+      borderSide: const BorderSide(color: borderGrey),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderSide: const BorderSide(color: deepNavyBlue, width: 1.4),
+      borderRadius: BorderRadius.circular(10),
+    ),
+  );
 
-  ElevatedButton _actionButton(String text, IconData icon, VoidCallback onPressed) {
+  ElevatedButton _actionButton(
+    String text,
+    IconData icon,
+    VoidCallback onPressed,
+  ) {
     return ElevatedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, color: deepNavyBlue),
-      label: Text(text, style: const TextStyle(color: deepNavyBlue)),
+      icon: Icon(icon, color: whiteBackground),
+      label: Text(text, style: const TextStyle(color: whiteBackground)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: greenYellow,
+        backgroundColor: deepNavyBlue,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
@@ -502,7 +482,9 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
 
   void _showSnack(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -517,7 +499,13 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: whiteBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Text(title, style: const TextStyle(color: deepNavyBlue)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: secondaryBlack,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         content: content,
         actions: [
           TextButton(
@@ -531,8 +519,8 @@ class _MyWalletScreenState extends State<MyWalletScreen> {
                 onConfirm();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: greenYellow,
-                foregroundColor: deepNavyBlue,
+                backgroundColor: deepNavyBlue,
+                foregroundColor: whiteBackground,
               ),
               child: Text(confirmText),
             ),

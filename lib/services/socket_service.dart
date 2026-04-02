@@ -1,16 +1,17 @@
 // lib/services/socket_service.dart
 import 'dart:async';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SocketService {
-  IO.Socket? socket;
+  io.Socket? socket;
 
   Future<void> connect(String baseUrl) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('jwt_token') ?? '';
 
-    socket = IO.io(baseUrl, <String, dynamic>{
+    socket = io.io(baseUrl, <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': false,
       'auth': {'token': token},
@@ -20,15 +21,15 @@ class SocketService {
     socket!.connect();
 
     socket!.onConnect((_) {
-      print('Socket connected');
+      debugPrint('Socket connected');
     });
 
     socket!.onDisconnect((_) {
-      print('Socket disconnected');
+      debugPrint('Socket disconnected');
     });
 
     socket!.onConnectError((err) {
-      print('Socket connect error: $err');
+      debugPrint('Socket connect error: $err');
     });
   }
 
@@ -57,3 +58,4 @@ class SocketService {
     socket = null;
   }
 }
+

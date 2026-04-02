@@ -69,7 +69,7 @@ class _MyProductsScreenState extends State<MyProductsScreen> {
       setState(() {
         _errorMessage = 'An error occurred: $e. Check backend server and network.';
       });
-      print('Error fetching my products: $e');
+      debugPrint('Error fetching my products: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -128,7 +128,7 @@ class _MyProductsScreenState extends State<MyProductsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.inventory_2_outlined, size: 80, color: color.secondary.withOpacity(0.5)),
+                          Icon(Icons.inventory_2_outlined, size: 80, color: color.secondary.withValues(alpha: 0.5)),
                           const SizedBox(height: 20),
                           Text(
                             'You have no products listed yet.',
@@ -254,17 +254,11 @@ class _MyProductsScreenState extends State<MyProductsScreen> {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             const SnackBar(content: Text('Edit Product functionality coming soon!')),
                                           );
-                                          // TODO: Navigate to EditProductScreen(product: product)
                                         },
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                        onPressed: () {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Delete Product functionality coming soon!')),
-                                          );
-                                          // TODO: _deleteProduct(product.id);
-                                        },
+                                        onPressed: () => _deleteProduct(product.id),
                                       ),
                                     ],
                                   ),
@@ -294,3 +288,4 @@ class _MyProductsScreenState extends State<MyProductsScreen> {
     );
   }
 }
+

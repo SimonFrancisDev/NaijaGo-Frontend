@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutterwave_standard/flutterwave.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class PaymentService {
   /// Starts a Flutterwave payment flow
@@ -55,11 +54,6 @@ class PaymentService {
           "💳 [PaymentService] Initiating payment | Amount: ₦$amount | Email: $email | Ref: $txRef | UserID: ${userId ?? 'not_set'}");
 
       final response = await flutterwave.charge(context);
-
-      if (response == null) {
-        debugPrint("⚠️ [PaymentService] Payment was cancelled by the user.");
-        return null;
-      }
 
       debugPrint(
           "✅ [PaymentService] Payment status: ${response.status} | Ref: ${response.txRef}");

@@ -56,7 +56,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       setState(() {
         _message = 'An error occurred: $e';
       });
-      print('Forgot password network error: $e');
+      debugPrint('Forgot password network error: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -99,7 +99,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   'Enter your email address and we\'ll send you a link to reset your password.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: color.onPrimary.withOpacity(0.8),
+                    color: color.onPrimary.withValues(alpha: 0.8),
                     fontSize: 16,
                   ),
                 ),
@@ -113,7 +113,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     labelText: 'Email',
                     labelStyle: TextStyle(color: color.onPrimary),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.1),
+                    fillColor: Colors.white.withValues(alpha: 0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.0),
                       borderSide: BorderSide.none,
@@ -173,7 +173,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: Text(
                     "Back to Login",
                     style: TextStyle(
-                      color: color.onPrimary.withOpacity(0.8),
+                      color: color.onPrimary.withValues(alpha: 0.8),
                       fontSize: 16,
                       decoration: TextDecoration.underline,
                     ),
@@ -187,3 +187,4 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 }
+

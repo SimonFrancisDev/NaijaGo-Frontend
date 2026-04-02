@@ -1,6 +1,4 @@
 // lib/models/order_model.dart
-import 'package:flutter/foundation.dart';
-import 'package:flutterwave_standard/models/responses/charge_response.dart';
 
 import 'address.dart';
 import 'order_item.dart'; // <-- Now imported and used

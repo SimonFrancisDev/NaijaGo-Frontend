@@ -7,13 +7,12 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../constants.dart';
-import '../../models/order.dart';
-import '../../models/product.dart';
 import '../../models/user.dart';
 import '../../widgets/order_tracking_widget.dart';
+import '../../widgets/tech_glow_background.dart';
 
 class MyOrdersScreen extends StatefulWidget {
-  const MyOrdersScreen({Key? key}) : super(key: key);
+  const MyOrdersScreen({super.key});
 
   @override
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
@@ -22,7 +21,6 @@ class MyOrdersScreen extends StatefulWidget {
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
   List<dynamic> _orders = []; // Changed to dynamic since we get raw JSON
   bool _isLoading = true;
-  String _userId = '';
 
   Timer? _pollingTimer;
   int _pollCount = 0;
@@ -53,7 +51,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
     if (token.isEmpty) {
       if (kDebugMode) {
-        print('❌ No token found, cannot update pending orders.');
+        debugPrint('❌ No token found, cannot update pending orders.');
       }
       return;
     }
@@ -62,7 +60,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
     try {
       if (mounted) {
-        setState(() { _isLoading = true; });
+        setState(() {
+          _isLoading = true;
+        });
       }
 
       final response = await http.post(
@@ -76,18 +76,20 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
         if (kDebugMode) {
-          print('✅ Updated pending orders: ${decoded['message']}');
+          debugPrint('✅ Updated pending orders: ${decoded['message']}');
         }
         await Future.delayed(const Duration(milliseconds: 500));
         await _fetchOrders();
       } else {
         if (kDebugMode) {
-          print('❌ Failed to update pending orders. Status: ${response.statusCode}');
+          debugPrint(
+            '❌ Failed to update pending orders. Status: ${response.statusCode}',
+          );
         }
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Exception updating pending orders: $e');
+        debugPrint('❌ Exception updating pending orders: $e');
       }
     } finally {
       if (mounted) {
@@ -115,26 +117,22 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
         if (user.id.isEmpty) {
           if (kDebugMode) {
-            print('❌ ERROR: User ID is empty!');
+            debugPrint('❌ ERROR: User ID is empty!');
           }
           setState(() => _isLoading = false);
           return;
         }
 
-        setState(() {
-          _userId = user.id;
-        });
-
         await _fetchOrders();
       } catch (e) {
         if (kDebugMode) {
-          print('❌ ERROR decoding user: $e');
+          debugPrint('❌ ERROR decoding user: $e');
         }
         setState(() => _isLoading = false);
       }
     } else {
       if (kDebugMode) {
-        print('⚠️ No user found in SharedPreferences.');
+        debugPrint('⚠️ No user found in SharedPreferences.');
       }
       setState(() => _isLoading = false);
     }
@@ -146,7 +144,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
     if (token.isEmpty) {
       if (kDebugMode) {
-        print('❌ No token found, cannot fetch orders.');
+        debugPrint('❌ No token found, cannot fetch orders.');
       }
       setState(() => _isLoading = false);
       return;
@@ -154,7 +152,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
     final url = '$baseUrl/api/orders/my';
     if (kDebugMode) {
-      print('🌐 Fetching orders from: $url');
+      debugPrint('🌐 Fetching orders from: $url');
     }
 
     try {
@@ -173,53 +171,67 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         if (decoded is List) {
           orderList = decoded;
           if (kDebugMode) {
-            print('✅ Got ${orderList.length} orders from API');
-            
+            debugPrint('✅ Got ${orderList.length} orders from API');
+
             // Debug the first order's structure
             if (orderList.isNotEmpty) {
               final firstOrder = orderList.first as Map<String, dynamic>;
-              print('\n📦 === DEBUG ORDER STRUCTURE ===');
-              print('Order ID: ${firstOrder['_id']}');
-              
+              debugPrint('\n📦 === DEBUG ORDER STRUCTURE ===');
+              debugPrint('Order ID: ${firstOrder['_id']}');
+
               // Check all available keys
-              print('Available keys: ${firstOrder.keys.toList()}');
-              
+              debugPrint('Available keys: ${firstOrder.keys.toList()}');
+
               // Specifically check price fields
-              print('\n💰 Price fields:');
-              print('  totalSubtotal: ${firstOrder['totalSubtotal']} (type: ${firstOrder['totalSubtotal']?.runtimeType})');
-              print('  totalPrice: ${firstOrder['totalPrice']} (type: ${firstOrder['totalPrice']?.runtimeType})');
-              print('  totalShippingPrice: ${firstOrder['totalShippingPrice']} (type: ${firstOrder['totalShippingPrice']?.runtimeType})');
-              print('  totalTaxPrice: ${firstOrder['totalTaxPrice']} (type: ${firstOrder['totalTaxPrice']?.runtimeType})');
-              
+              debugPrint('\n💰 Price fields:');
+              debugPrint(
+                '  totalSubtotal: ${firstOrder['totalSubtotal']} (type: ${firstOrder['totalSubtotal']?.runtimeType})',
+              );
+              debugPrint(
+                '  totalPrice: ${firstOrder['totalPrice']} (type: ${firstOrder['totalPrice']?.runtimeType})',
+              );
+              debugPrint(
+                '  totalShippingPrice: ${firstOrder['totalShippingPrice']} (type: ${firstOrder['totalShippingPrice']?.runtimeType})',
+              );
+              debugPrint(
+                '  totalTaxPrice: ${firstOrder['totalTaxPrice']} (type: ${firstOrder['totalTaxPrice']?.runtimeType})',
+              );
+
               // Check shipments
               if (firstOrder.containsKey('shipments')) {
                 final shipments = firstOrder['shipments'] as List;
-                print('\n🚚 Shipments: ${shipments.length}');
+                debugPrint('\n🚚 Shipments: ${shipments.length}');
                 if (shipments.isNotEmpty) {
                   final firstShipment = shipments.first as Map<String, dynamic>;
-                  print('  First shipment subtotal: ${firstShipment['subtotal']}');
-                  print('  First shipment shippingPrice: ${firstShipment['shippingPrice']}');
-                  
+                  debugPrint(
+                    '  First shipment subtotal: ${firstShipment['subtotal']}',
+                  );
+                  debugPrint(
+                    '  First shipment shippingPrice: ${firstShipment['shippingPrice']}',
+                  );
+
                   // Check items in shipment
                   if (firstShipment.containsKey('items')) {
                     final items = firstShipment['items'] as List;
-                    print('  Items in shipment: ${items.length}');
+                    debugPrint('  Items in shipment: ${items.length}');
                     if (items.isNotEmpty) {
                       final firstItem = items.first as Map<String, dynamic>;
-                      print('  First item:');
-                      print('    Name: ${firstItem['name']}');
-                      print('    Price: ${firstItem['price']} (type: ${firstItem['price']?.runtimeType})');
-                      print('    Quantity: ${firstItem['quantity']}');
+                      debugPrint('  First item:');
+                      debugPrint('    Name: ${firstItem['name']}');
+                      debugPrint(
+                        '    Price: ${firstItem['price']} (type: ${firstItem['price']?.runtimeType})',
+                      );
+                      debugPrint('    Quantity: ${firstItem['quantity']}');
                     }
                   }
                 }
               }
-              print('===============================\n');
+              debugPrint('===============================\n');
             }
           }
         } else {
           if (kDebugMode) {
-            print('⚠️ Unexpected response format: $decoded');
+            debugPrint('⚠️ Unexpected response format: $decoded');
           }
           setState(() => _isLoading = false);
           return;
@@ -229,16 +241,15 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           _orders = orderList;
           _isLoading = false;
         });
-
       } else {
         if (kDebugMode) {
-          print('❌ Failed to load orders. Status: ${response.statusCode}');
+          debugPrint('❌ Failed to load orders. Status: ${response.statusCode}');
         }
         setState(() => _isLoading = false);
       }
     } catch (e) {
       if (kDebugMode) {
-        print('❌ Exception while fetching orders: $e');
+        debugPrint('❌ Exception while fetching orders: $e');
       }
       setState(() => _isLoading = false);
     }
@@ -264,12 +275,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     if (orderTotal != null && orderTotal > 0) {
       return orderTotal;
     }
-    
+
     // Calculate manually if not available
     final subtotal = _getSubtotal(order);
     final shipping = _getShippingPrice(order);
     final tax = (order['totalTaxPrice'] as num?)?.toDouble() ?? 0.0;
-    
+
     return subtotal + shipping + tax;
   }
 
@@ -283,22 +294,22 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     if (orderSubtotal != null && orderSubtotal > 0) {
       return orderSubtotal;
     }
-    
+
     // Fallback 1: Try to get from shipments
     final shipments = order['shipments'] as List<dynamic>? ?? [];
     double subtotalFromShipments = 0.0;
-    
+
     for (final shipment in shipments) {
       final shipmentSubtotal = (shipment['subtotal'] as num?)?.toDouble();
       if (shipmentSubtotal != null) {
         subtotalFromShipments += shipmentSubtotal;
       }
     }
-    
+
     if (subtotalFromShipments > 0) {
       return subtotalFromShipments;
     }
-    
+
     // Fallback 2: Calculate from items directly
     return _calculateSubtotalFromItems(order);
   }
@@ -306,7 +317,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   double _calculateSubtotalFromItems(Map<String, dynamic> order) {
     final shipments = order['shipments'] as List<dynamic>? ?? [];
     double subtotal = 0.0;
-    
+
     for (final shipment in shipments) {
       final items = shipment['items'] as List<dynamic>? ?? [];
       for (final item in items) {
@@ -315,43 +326,43 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         subtotal += price * quantity;
       }
     }
-    
+
     return subtotal;
   }
 
   List<dynamic> _getAllItems(Map<String, dynamic> order) {
     final List<dynamic> allItems = [];
     final shipments = order['shipments'] as List<dynamic>? ?? [];
-    
+
     for (final shipment in shipments) {
       final items = shipment['items'] as List<dynamic>? ?? [];
       allItems.addAll(items);
     }
-    
+
     return allItems;
   }
 
   int _getTotalItemCount(Map<String, dynamic> order) {
     int total = 0;
     final shipments = order['shipments'] as List<dynamic>? ?? [];
-    
+
     for (final shipment in shipments) {
       final items = shipment['items'] as List<dynamic>? ?? [];
       for (final item in items) {
         total += (item['quantity'] as num?)?.toInt() ?? 0;
       }
     }
-    
+
     return total;
   }
 
   Widget _buildOrderHeader(Map<String, dynamic> order, ColorScheme color) {
     final status = _getOrderStatus(order);
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.primary.withOpacity(0.1),
+        color: color.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -369,7 +380,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: _getStatusColor(status, color),
                   borderRadius: BorderRadius.circular(20),
@@ -388,13 +402,17 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.calendar_today, size: 16, color: color.onSurface.withOpacity(0.6)),
+              Icon(
+                Icons.calendar_today,
+                size: 16,
+                color: color.onSurface.withValues(alpha: 0.6),
+              ),
               const SizedBox(width: 8),
               Text(
                 'Ordered: ${_formatDateTime(order['createdAt']?.toString())}',
                 style: TextStyle(
                   fontSize: 14,
-                  color: color.onSurface.withOpacity(0.8),
+                  color: color.onSurface.withValues(alpha: 0.8),
                 ),
               ),
             ],
@@ -403,13 +421,17 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.payment, size: 16, color: color.onSurface.withOpacity(0.6)),
+                Icon(
+                  Icons.payment,
+                  size: 16,
+                  color: color.onSurface.withValues(alpha: 0.6),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Paid: ${_formatDateTime(order['paidAt']?.toString())}',
                   style: TextStyle(
                     fontSize: 14,
-                    color: color.onSurface.withOpacity(0.8),
+                    color: color.onSurface.withValues(alpha: 0.8),
                   ),
                 ),
               ],
@@ -419,7 +441,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.delivery_dining, size: 16, color: color.onSurface.withOpacity(0.6)),
+                Icon(
+                  Icons.delivery_dining,
+                  size: 16,
+                  color: color.onSurface.withValues(alpha: 0.6),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Delivered: ${_formatDateTime(order['deliveredAt']?.toString())}',
@@ -433,7 +459,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             ),
           ],
         ],
-      )
+      ),
     );
   }
 
@@ -460,16 +486,18 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     final shipping = _getShippingPrice(order);
     final tax = (order['totalTaxPrice'] as num?)?.toDouble() ?? 0.0;
     final total = _getOrderTotal(order);
-    
+
     // Debug output
     if (kDebugMode) {
-      print('\n=== ORDER SUMMARY DEBUG for Order ${order['_id']?.toString().substring(0, 8)} ===');
-      print('Items count: ${_getTotalItemCount(order)}');
-      print('Subtotal: ₦$subtotal');
-      print('Shipping: ₦$shipping');
-      print('Tax: ₦$tax');
-      print('Total: ₦$total');
-      print('==========================================\n');
+      debugPrint(
+        '\n=== ORDER SUMMARY DEBUG for Order ${order['_id']?.toString().substring(0, 8)} ===',
+      );
+      debugPrint('Items count: ${_getTotalItemCount(order)}');
+      debugPrint('Subtotal: ₦$subtotal');
+      debugPrint('Shipping: ₦$shipping');
+      debugPrint('Tax: ₦$tax');
+      debugPrint('Total: ₦$total');
+      debugPrint('==========================================\n');
     }
 
     return Container(
@@ -481,18 +509,36 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       ),
       child: Column(
         children: [
-          _buildSummaryRow('Items (${_getTotalItemCount(order)})', '₦${subtotal.toStringAsFixed(2)}', color),
-          _buildSummaryRow('Delivery Fee', '₦${shipping.toStringAsFixed(2)}', color),
+          _buildSummaryRow(
+            'Items (${_getTotalItemCount(order)})',
+            '₦${subtotal.toStringAsFixed(2)}',
+            color,
+          ),
+          _buildSummaryRow(
+            'Delivery Fee',
+            '₦${shipping.toStringAsFixed(2)}',
+            color,
+          ),
           if (tax > 0)
             _buildSummaryRow('Tax', '₦${tax.toStringAsFixed(2)}', color),
           const Divider(height: 24),
-          _buildSummaryRow('Total Amount', '₦${total.toStringAsFixed(2)}', color, isTotal: true),
+          _buildSummaryRow(
+            'Total Amount',
+            '₦${total.toStringAsFixed(2)}',
+            color,
+            isTotal: true,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, ColorScheme color, {bool isTotal = false}) {
+  Widget _buildSummaryRow(
+    String label,
+    String value,
+    ColorScheme color, {
+    bool isTotal = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -502,7 +548,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             label,
             style: TextStyle(
               fontSize: isTotal ? 16 : 14,
-              color: isTotal ? color.primary : color.onSurface.withOpacity(0.7),
+              color: isTotal
+                  ? color.primary
+                  : color.onSurface.withValues(alpha: 0.7),
               fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
             ),
           ),
@@ -522,7 +570,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Widget _buildShippingDetails(Map<String, dynamic> order, ColorScheme color) {
     final shipping = order['shippingAddress'];
     if (shipping == null || shipping is! Map) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -557,24 +605,21 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           const SizedBox(height: 12),
           Text(
             shipping['address']?.toString() ?? 'No address provided',
-            style: TextStyle(
-              fontSize: 15,
-              color: color.onSurface,
-            ),
+            style: TextStyle(fontSize: 15, color: color.onSurface),
           ),
           const SizedBox(height: 4),
           Text(
             '${shipping['city'] ?? ''}, ${shipping['postalCode'] ?? ''}',
             style: TextStyle(
               fontSize: 14,
-              color: color.onSurface.withOpacity(0.8),
+              color: color.onSurface.withValues(alpha: 0.8),
             ),
           ),
           Text(
             shipping['country']?.toString() ?? '',
             style: TextStyle(
               fontSize: 14,
-              color: color.onSurface.withOpacity(0.8),
+              color: color.onSurface.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -585,7 +630,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Widget _buildProductGallery(Map<String, dynamic> order) {
     final allItems = _getAllItems(order);
     if (allItems.isEmpty) return const SizedBox.shrink();
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -607,9 +652,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
             itemCount: allItems.length,
             itemBuilder: (context, index) {
               final item = allItems[index];
-              final imageUrl = item['image']?.toString() ?? 
+              final imageUrl =
+                  item['image']?.toString() ??
                   'https://placehold.co/100x100/CCCCCC/000000?text=No+Image';
-              
+
               return Container(
                 margin: const EdgeInsets.only(right: 12),
                 child: Column(
@@ -660,12 +706,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 
   Widget _buildOrderItem(Map<String, dynamic> item, ColorScheme color) {
-    final imageUrl = item['image']?.toString() ?? 
+    final imageUrl =
+        item['image']?.toString() ??
         'https://placehold.co/80x80/CCCCCC/000000?text=No+Image';
     final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
     final price = (item['price'] as num?)?.toDouble() ?? 0.0;
     final selectedSize = item['selectedSize'];
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -721,7 +768,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                       'Qty: $quantity × ₦${price.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 14,
-                        color: color.onSurface.withOpacity(0.8),
+                        color: color.onSurface.withValues(alpha: 0.8),
                       ),
                     ),
                     Text(
@@ -737,7 +784,10 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 if (selectedSize != null) ...[
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(6),
@@ -770,7 +820,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       final width = selectedSize['width']?.toString();
       final height = selectedSize['height']?.toString();
       final unit = selectedSize['unit']?.toString() ?? 'CM';
-      
+
       if (label != null && label.isNotEmpty) {
         return Text(
           'Size: $label',
@@ -791,7 +841,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         );
       }
     }
-    
+
     return Text(
       'Custom Size',
       style: TextStyle(
@@ -806,144 +856,161 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Orders'),
-        backgroundColor: color.primary,
-        elevation: 0,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _orders.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.shopping_bag_outlined,
-                        size: 80,
-                        color: color.onSurface.withOpacity(0.3),
+    return TechGlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('My Orders'),
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              )
+            : _orders.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.shopping_bag_outlined,
+                      size: 80,
+                      color: Colors.white.withValues(alpha: 0.65),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No orders yet',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white.withValues(alpha: 0.82),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No orders yet',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: color.onSurface.withOpacity(0.5),
+                    ),
+                  ],
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: _fetchOrders,
+                child: ListView.builder(
+                  itemCount: _orders.length,
+                  padding: const EdgeInsets.all(16),
+                  itemBuilder: (context, index) {
+                    final order = _orders[index] as Map<String, dynamic>;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      child: Card(
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _fetchOrders,
-                  child: ListView.builder(
-                    itemCount: _orders.length,
-                    padding: const EdgeInsets.all(16),
-                    itemBuilder: (context, index) {
-                      final order = _orders[index] as Map<String, dynamic>;
-                      
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 20),
-                        child: Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Order Header
-                                _buildOrderHeader(order, color),
-                                
-                                const SizedBox(height: 16),
-                                
-                                // Tracking Timeline
-                                OrderTrackingWidget(
-                                  key: ValueKey('${order['_id']}-${_getOrderStatus(order)}'),
-                                  orderStatus: _getOrderStatus(order),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Order Header
+                              _buildOrderHeader(order, color),
+
+                              const SizedBox(height: 16),
+
+                              // Tracking Timeline
+                              OrderTrackingWidget(
+                                key: ValueKey(
+                                  '${order['_id']}-${_getOrderStatus(order)}',
                                 ),
-                                
-                                const SizedBox(height: 20),
-                                
-                                // Order Summary
-                                _buildOrderSummary(order, color),
-                                
-                                const SizedBox(height: 16),
-                                
-                                // Shipping Details
-                                _buildShippingDetails(order, color),
-                                
-                                const SizedBox(height: 20),
-                                
-                                // Product Gallery
-                                _buildProductGallery(order),
-                                
-                                const SizedBox(height: 16),
-                                
-                                // Order Items
-                                Text(
-                                  'Order Items',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: color.primary,
+                                orderStatus: _getOrderStatus(order),
+                              ),
+
+                              const SizedBox(height: 20),
+
+                              // Order Summary
+                              _buildOrderSummary(order, color),
+
+                              const SizedBox(height: 16),
+
+                              // Shipping Details
+                              _buildShippingDetails(order, color),
+
+                              const SizedBox(height: 20),
+
+                              // Product Gallery
+                              _buildProductGallery(order),
+
+                              const SizedBox(height: 16),
+
+                              // Order Items
+                              Text(
+                                'Order Items',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: color.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Detailed Items List
+                              ..._getAllItems(order).map(
+                                (item) => _buildOrderItem(
+                                  item as Map<String, dynamic>,
+                                  color,
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Payment Method
+                              if (order['paymentMethod'] != null)
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                
-                                // Detailed Items List
-                                ..._getAllItems(order).map((item) => 
-                                  _buildOrderItem(item as Map<String, dynamic>, color)).toList(),
-                                
-                                const SizedBox(height: 16),
-                                
-                                // Payment Method
-                                if (order['paymentMethod'] != null)
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade50,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          order['paymentMethod'] == 'Card' 
-                                              ? Icons.credit_card
-                                              : order['paymentMethod'] == 'Wallet'
-                                                ? Icons.account_balance_wallet
-                                                : Icons.account_balance,
-                                          color: color.primary,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Text(
-                                          'Paid with ${order['paymentMethod']}',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: color.onSurface.withOpacity(0.8),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        order['paymentMethod'] == 'Card'
+                                            ? Icons.credit_card
+                                            : order['paymentMethod'] == 'Wallet'
+                                            ? Icons.account_balance_wallet
+                                            : Icons.account_balance,
+                                        color: color.primary,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        'Paid with ${order['paymentMethod']}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: color.onSurface.withValues(
+                                            alpha: 0.8,
                                           ),
                                         ),
-                                        const Spacer(),
-                                        Icon(
-                                          Icons.check_circle,
-                                          color: (order['isPaid'] as bool?) == true ? Colors.green : Colors.grey,
-                                          size: 20,
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                      const Spacer(),
+                                      Icon(
+                                        Icons.check_circle,
+                                        color:
+                                            (order['isPaid'] as bool?) == true
+                                            ? Colors.green
+                                            : Colors.grey,
+                                        size: 20,
+                                      ),
+                                    ],
                                   ),
-                              ],
-                            ),
+                                ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
+              ),
+      ),
     );
   }
 }

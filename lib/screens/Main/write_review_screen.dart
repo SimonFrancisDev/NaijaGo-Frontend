@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants.dart';
 import '../../models/product.dart'; // Import Product model to get product details
+import '../../widgets/tech_glow_background.dart';
 
 class WriteReviewScreen extends StatefulWidget {
   final Product product; // The product for which the review is being written
@@ -60,7 +61,9 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
     }
 
     try {
-      final Uri url = Uri.parse('$baseUrl/api/reviews'); // Backend endpoint for submitting reviews
+      final Uri url = Uri.parse(
+        '$baseUrl/api/reviews',
+      ); // Backend endpoint for submitting reviews
       final response = await http.post(
         url,
         headers: <String, String>{
@@ -75,10 +78,16 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
       );
 
       final Map<String, dynamic> responseData = jsonDecode(response.body);
+      if (!mounted) return;
 
-      if (response.statusCode == 201) { // 201 Created is typical for successful POST
+      if (response.statusCode == 201) {
+        // 201 Created is typical for successful POST
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(responseData['message'] ?? 'Review submitted successfully!')),
+          SnackBar(
+            content: Text(
+              responseData['message'] ?? 'Review submitted successfully!',
+            ),
+          ),
         );
         if (mounted) {
           Navigator.of(context).pop(true); // Pop with true to indicate success
@@ -90,9 +99,10 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred: $e. Check backend server and network.';
+        _errorMessage =
+            'An error occurred: $e. Check backend server and network.';
       });
-      print('Error submitting review: $e');
+      debugPrint('Error submitting review: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -104,135 +114,204 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: color.surface,
-      appBar: AppBar(
-        title: Text('Write a Review', style: TextStyle(color: color.onSurface)),
-        backgroundColor: color.surface,
-        elevation: 1,
-        iconTheme: IconThemeData(color: color.onSurface),
-      ),
-      body: _isLoading && _errorMessage == null
-          ? Center(child: CircularProgressIndicator(color: color.primary))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Reviewing Product:',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color.secondary),
+    return TechGlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text(
+            'Write a Review',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: _isLoading && _errorMessage == null
+            ? Center(child: CircularProgressIndicator(color: color.primary))
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Container(
+                  padding: const EdgeInsets.all(20.0),
+                  decoration: BoxDecoration(
+                    color: color.surface.withValues(alpha: 0.94),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.12),
                     ),
-                    const SizedBox(height: 8),
-                    ListTile(
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          widget.product.imageUrls.isNotEmpty ? widget.product.imageUrls[0] : 'https://placehold.co/60x60/CCCCCC/000000?text=No+Image',
-                          width: 60,
-                          height: 60,
-                          fit: BoxFit.cover,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 24,
+                        offset: const Offset(0, 16),
+                      ),
+                    ],
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Reviewing Product:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: color.secondary,
+                          ),
                         ),
-                      ),
-                      title: Text(
-                        widget.product.name,
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: color.secondary),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        '₦${widget.product.price.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 14, color: color.primary, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const Divider(height: 30, thickness: 1),
-
-                    Text(
-                      'Your Rating:',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color.secondary),
-                    ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: List.generate(5, (index) {
-                          return IconButton(
-                            icon: Icon(
-                              index < _rating ? Icons.star : Icons.star_border,
-                              color: Colors.amber,
-                              size: 40,
+                        const SizedBox(height: 8),
+                        ListTile(
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              widget.product.imageUrls.isNotEmpty
+                                  ? widget.product.imageUrls[0]
+                                  : 'https://placehold.co/60x60/CCCCCC/000000?text=No+Image',
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
                             ),
-                            onPressed: () => _setRating(index + 1.0),
-                          );
-                        }),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                          ),
+                          title: Text(
+                            widget.product.name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: color.secondary,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            '₦${widget.product.price.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: color.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 30, thickness: 1),
 
-                    Text(
-                      'Your Comment:',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color.secondary),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _commentController,
-                      maxLines: 5,
-                      decoration: InputDecoration(
-                        hintText: 'Share your experience with this product...',
-                        hintStyle: TextStyle(color: color.secondary.withOpacity(0.5)),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0),
-                          borderSide: BorderSide(color: color.secondary.withOpacity(0.5)),
+                        Text(
+                          'Your Rating:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: color.secondary,
+                          ),
                         ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0),
-                          borderSide: BorderSide(color: color.primary, width: 2),
+                        const SizedBox(height: 10),
+                        Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(5, (index) {
+                              return IconButton(
+                                icon: Icon(
+                                  index < _rating
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  color: Colors.amber,
+                                  size: 40,
+                                ),
+                                onPressed: () => _setRating(index + 1.0),
+                              );
+                            }),
+                          ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.0),
-                          borderSide: BorderSide(color: color.secondary.withOpacity(0.3)),
-                        ),
-                        filled: true,
-                        fillColor: color.surface,
-                      ),
-                      validator: (value) => value!.isEmpty ? 'Please enter your comment' : null,
-                    ),
-                    const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
-                    if (_errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Colors.red, fontSize: 14),
-                          textAlign: TextAlign.center,
+                        Text(
+                          'Your Comment:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: color.secondary,
+                          ),
                         ),
-                      ),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: _isLoading
-                          ? Center(child: CircularProgressIndicator(color: color.primary))
-                          : ElevatedButton(
-                              onPressed: _submitReview,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: color.primary,
-                                foregroundColor: color.onPrimary,
-                                padding: const EdgeInsets.symmetric(vertical: 15),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              ),
-                              child: const Text(
-                                'Submit Review',
-                                style: TextStyle(fontSize: 18),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: _commentController,
+                          maxLines: 5,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Share your experience with this product...',
+                            hintStyle: TextStyle(
+                              color: color.secondary.withValues(alpha: 0.5),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                              borderSide: BorderSide(
+                                color: color.secondary.withValues(alpha: 0.5),
                               ),
                             ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                              borderSide: BorderSide(
+                                color: color.primary,
+                                width: 2,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                              borderSide: BorderSide(
+                                color: color.secondary.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            filled: true,
+                            fillColor: color.surface,
+                          ),
+                          validator: (value) => value!.isEmpty
+                              ? 'Please enter your comment'
+                              : null,
+                        ),
+                        const SizedBox(height: 24),
+
+                        if (_errorMessage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Text(
+                              _errorMessage!,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: _isLoading
+                              ? Center(
+                                  child: CircularProgressIndicator(
+                                    color: color.primary,
+                                  ),
+                                )
+                              : ElevatedButton(
+                                  onPressed: _submitReview,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: color.primary,
+                                    foregroundColor: color.onPrimary,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 15,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Submit Review',
+                                    style: TextStyle(fontSize: 18),
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 }

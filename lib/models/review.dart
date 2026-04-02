@@ -1,5 +1,3 @@
-import 'package:naija_go/models/user.dart';
-import 'package:naija_go/models/product.dart';
 
 class Review {
   final String id;

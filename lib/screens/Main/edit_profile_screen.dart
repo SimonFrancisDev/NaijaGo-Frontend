@@ -100,10 +100,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         final User user = User.fromJson(responseData);
 
-        _firstNameController.text = user.firstName ?? '';
-        _lastNameController.text = user.lastName ?? '';
-        _emailController.text = user.email ?? '';
-        _phoneNumberController.text = user.phoneNumber ?? '';
+        _firstNameController.text = user.firstName;
+        _lastNameController.text = user.lastName;
+        _emailController.text = user.email;
+        _phoneNumberController.text = user.phoneNumber;
 
         setState(() {
           final String? fetchedProfilePicPath = responseData['profilePicUrl']; 
@@ -119,7 +119,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() {
         _errorMessage = 'An error occurred: $e. Check network or backend.';
       });
-      print('Error fetching user profile: $e');
+      debugPrint('Error fetching user profile: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -168,7 +168,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'lastName': _lastNameController.text.trim(),
         'email': _emailController.text.trim(),
         'phoneNumber': _phoneNumberController.text.trim(),
-        if (base64Image != null) 'profilePicBase64': base64Image,
+        'profilePicBase64': ?base64Image,
       };
 
       final Uri url = Uri.parse('$baseUrl/api/auth/profile');
@@ -201,25 +201,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           });
         }
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(responseData['message'] ?? 'Profile updated successfully!')),
         );
 
-        if (mounted) Navigator.of(context).pop(true);
+        Navigator.of(context).pop(true);
       } else {
         setState(() {
           _errorMessage = responseData['message'] ?? 'Failed to update profile.';
         });
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'An error occurred: $e. Check network or backend.';
-      });
-      print('Error saving profile: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'An error occurred: $e. Check network or backend.';
+        });
+      }
+      debugPrint('Error saving profile: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -249,7 +254,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 60,
-                            backgroundColor: deepNavyBlue.withOpacity(0.2),
+                            backgroundColor: deepNavyBlue.withValues(alpha: 0.2),
                             child: ClipOval(
                               child: SizedBox.expand(
                                 child: _pickedImage != null
@@ -348,10 +353,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   InputDecoration _inputDecoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(color: deepNavyBlue.withOpacity(0.7)),
+      labelStyle: TextStyle(color: deepNavyBlue.withValues(alpha: 0.7)),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(color: deepNavyBlue.withOpacity(0.5)),
+        borderSide: BorderSide(color: deepNavyBlue.withValues(alpha: 0.5)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
@@ -359,7 +364,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8.0),
-        borderSide: BorderSide(color: deepNavyBlue.withOpacity(0.3)),
+        borderSide: BorderSide(color: deepNavyBlue.withValues(alpha: 0.3)),
       ),
       filled: true,
       fillColor: whiteBackground,

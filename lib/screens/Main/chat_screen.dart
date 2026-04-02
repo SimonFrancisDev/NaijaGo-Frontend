@@ -1,25 +1,33 @@
-// chat_screen.dart (FIXED)
-import 'package:flutter/material.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
-import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:naija_go/auth/screens/login_screen.dart';
 
-// You will need to manage the user's JWT token for socket auth.
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
+
+import '../../widgets/pharmacy_ui.dart';
+
 Future<String?> _getAuthToken() async {
   try {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('jwt_token');
-    return token;
+    return prefs.getString('jwt_token');
   } catch (e) {
-    print('Error retrieving JWT token from SharedPreferences: $e');
+    debugPrint('Error retrieving JWT token: $e');
     return null;
   }
 }
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String? sessionId;
+  final bool isPharmacistView;
+  final String? assignedPharmacistName;
+
+  const ChatScreen({
+    super.key,
+    this.sessionId,
+    this.isPharmacistView = false,
+    this.assignedPharmacistName,
+  });
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -30,27 +38,67 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
 
-  // State variables
+  final String _apiUrl = 'https://naijago-backend.onrender.com';
+
+  io.Socket? _socket;
   String? _sessionId;
   bool _isAssignedToPharmacist = false;
   String? _pharmacistName;
   bool _isTyping = false;
   bool _globalPharmacistOnline = false;
+  bool _isBootstrapping = true;
 
-  late IO.Socket _socket;
-  final String _apiUrl = 'https://naijago-backend.onrender.com';
+  String get _myRole => widget.isPharmacistView ? 'pharmacist' : 'user';
 
   @override
   void initState() {
     super.initState();
-    _startChatSessionAndConnect();
+    _controller.addListener(_handleComposerChanged);
+    _bootstrapConversation();
   }
 
-  // --- Session Management ---
+  void _handleComposerChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _bootstrapConversation() async {
+    _pharmacistName = widget.assignedPharmacistName;
+
+    if (widget.isPharmacistView) {
+      if (widget.sessionId == null) {
+        _addSystemMessage('No consultation session was supplied.');
+        setState(() {
+          _isBootstrapping = false;
+        });
+        return;
+      }
+
+      _sessionId = widget.sessionId;
+      _isAssignedToPharmacist = true;
+      final token = await _getAuthToken();
+      if (token == null) {
+        _addSystemMessage('Authentication failed. Please log in again.');
+        setState(() {
+          _isBootstrapping = false;
+        });
+        return;
+      }
+      _connectSocket(token);
+      return;
+    }
+
+    await _startChatSessionAndConnect();
+  }
+
   Future<void> _startChatSessionAndConnect() async {
     final token = await _getAuthToken();
     if (token == null) {
       _addSystemMessage('Authentication failed. Please log in again.');
+      setState(() {
+        _isBootstrapping = false;
+      });
       return;
     }
 
@@ -66,73 +114,115 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (res.statusCode == 200 || res.statusCode == 201) {
         final data = jsonDecode(res.body);
-        _sessionId = data['_id'];
+        _sessionId = data['_id']?.toString();
         _isAssignedToPharmacist = data['pharmacist'] != null;
         _connectSocket(token);
       } else {
-        _addSystemMessage('Failed to start chat session. Status: ${res.statusCode}');
+        _addSystemMessage(
+          'Failed to start chat session. Status: ${res.statusCode}.',
+        );
+        setState(() {
+          _isBootstrapping = false;
+        });
       }
-    } catch (e) {
+    } catch (_) {
       _addSystemMessage('Network error: Could not connect to chat service.');
+      setState(() {
+        _isBootstrapping = false;
+      });
     }
   }
 
-  // --- Socket Connection ---
   void _connectSocket(String token) {
-    _socket = IO.io(
+    _socket?.dispose();
+    _socket = io.io(
       _apiUrl,
-      IO.OptionBuilder()
+      io.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
           .setAuth({'token': token})
           .build(),
     );
 
-    _socket.connect();
+    _socket!.connect();
 
-    _socket.onConnect((_) {
-      print('Connected to chat socket. Joining session: $_sessionId');
-      _socket.emitWithAck('join_chat', {'sessionId': _sessionId}, ack: (response) {
-        final Map<String, dynamic> data = response.isNotEmpty ? response[0] : {};
-        if (data['success'] == true) {
-          final List<dynamic> messages = data['messages'] ?? [];
-          final session = data['session'] ?? {};
+    _socket!.onConnect((_) {
+      if (_sessionId == null) {
+        _addSystemMessage('Could not join consultation because the session ID is missing.');
+        if (mounted) {
           setState(() {
-            _isAssignedToPharmacist = session['pharmacist'] != null;
-            _messages.clear();
-            for (var msg in messages) {
-              _messages.add(_formatSocketMessage(msg));
-            }
+            _isBootstrapping = false;
           });
-          _scrollToBottom();
-          _addSystemMessage(_isAssignedToPharmacist
-              ? 'Chat history loaded. You are chatting with a pharmacist.'
-              : 'Chat history loaded. The AI is currently assisting you.');
-        } else {
-          _addSystemMessage('Failed to join chat room: ${data['error'] ?? 'Unknown error'}');
         }
+        return;
+      }
+
+      _socket!.emitWithAck(
+        'join_chat',
+        {'sessionId': _sessionId},
+        ack: (response) {
+          final Map<String, dynamic> data = response.isNotEmpty ? response[0] : {};
+          if (data['success'] == true) {
+            final List<dynamic> messages = data['messages'] ?? [];
+            final session = data['session'] ?? {};
+
+            if (!mounted) return;
+            setState(() {
+              _isAssignedToPharmacist =
+                  widget.isPharmacistView || session['pharmacist'] != null;
+              _messages.clear();
+              for (final msg in messages) {
+                _appendMessageIfNew(_formatSocketMessage(msg));
+              }
+              _isBootstrapping = false;
+            });
+
+            _scrollToBottom();
+            _addSystemMessage(
+              widget.isPharmacistView
+                  ? 'You joined this consultation as the assigned pharmacist.'
+                  : _isAssignedToPharmacist
+                      ? 'Chat history loaded. A pharmacist is now supporting this conversation.'
+                      : 'Chat history loaded. The AI assistant is currently supporting you.',
+            );
+          } else {
+            _addSystemMessage(
+              'Failed to join chat room: ${data['error'] ?? 'Unknown error'}',
+            );
+            if (mounted) {
+              setState(() {
+                _isBootstrapping = false;
+              });
+            }
+          }
+        },
+      );
+    });
+
+    _socket!.on('pharmacistStatus', (data) {
+      if (!mounted || widget.isPharmacistView) return;
+      setState(() {
+        _globalPharmacistOnline = data['online'] ?? false;
       });
     });
 
-    _socket.on('pharmacistStatus', (data) {
-      setState(() => _globalPharmacistOnline = data['online'] ?? false);
-    });
-
-    _socket.on('new_message', (data) {
+    _socket!.on('new_message', (data) {
       final formattedMessage = _formatSocketMessage(data);
-
-      // ⚠️ FIX 1: Filter out messages echoed from the current user to prevent duplicates.
-      if (formattedMessage['from'] != 'user') {
-        setState(() {
-          _isTyping = false;
-          _messages.add(formattedMessage);
-        });
-        _scrollToBottom();
+      if (formattedMessage['from'] == _myRole) {
+        return;
       }
+
+      if (!mounted) return;
+      setState(() {
+        _isTyping = false;
+        _appendMessageIfNew(formattedMessage);
+      });
+      _scrollToBottom();
     });
 
-    _socket.on('pharmacist_joined', (data) {
-      final String name = data['name'] ?? 'A certified pharmacist';
+    _socket!.on('pharmacist_joined', (data) {
+      final String name = (data['name'] ?? 'A certified pharmacist').toString();
+      if (!mounted) return;
       setState(() {
         _isAssignedToPharmacist = true;
         _pharmacistName = name;
@@ -140,26 +230,44 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     });
 
-    _socket.onDisconnect((_) => print('Disconnected from chat socket'));
-    _socket.onError((err) => print('Socket error: $err'));
+    _socket!.onDisconnect((_) {
+      if (!mounted) return;
+      setState(() {
+        _globalPharmacistOnline = false;
+      });
+    });
+
+    _socket!.onError((err) => debugPrint('Socket error: $err'));
   }
 
-  // --- Message Handling ---
   Map<String, dynamic> _formatSocketMessage(Map<String, dynamic> data) {
     String sender = 'user';
-    if (data['senderType'] == 'pharmacist') sender = 'pharmacist';
-    else if (data['senderType'] == 'ai') sender = 'ai';
-    else if (data['senderType'] == 'system') sender = 'system';
+    if (data['senderType'] == 'pharmacist') {
+      sender = 'pharmacist';
+    } else if (data['senderType'] == 'ai') {
+      sender = 'ai';
+    } else if (data['senderType'] == 'system') {
+      sender = 'system';
+    }
 
     return {
       'from': sender,
-      'text': data['text'],
-      'id': data['id'],
-      'createdAt': data['createdAt'],
+      'text': (data['text'] ?? '').toString(),
+      'id': data['id']?.toString(),
+      'createdAt': data['createdAt']?.toString(),
     };
   }
 
+  void _appendMessageIfNew(Map<String, dynamic> message) {
+    final id = message['id'];
+    if (id != null && _messages.any((msg) => msg['id'] == id)) {
+      return;
+    }
+    _messages.add(message);
+  }
+
   void _addSystemMessage(String text) {
+    if (!mounted) return;
     setState(() {
       _messages.add({
         'from': 'system',
@@ -172,42 +280,44 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _sessionId == null) return;
+    if (text.isEmpty || _sessionId == null || _socket?.connected != true) {
+      return;
+    }
 
     setState(() {
-      // 1. Display the user's message immediately (local, responsive add)
-      _messages.add({'from': 'user', 'text': text, 'id': 'local-${DateTime.now().millisecondsSinceEpoch}'});
+      _appendMessageIfNew({
+        'from': _myRole,
+        'text': text,
+        'id': 'local-${DateTime.now().millisecondsSinceEpoch}',
+      });
       _controller.clear();
-      
-      // 2. ⚠️ FIX 2: Show typing indicator immediately after sending
-      _isTyping = true; 
+      _isTyping = true;
     });
     _scrollToBottom();
 
-    _socket.emitWithAck('send_chat_message', {'sessionId': _sessionId, 'text': text}, ack: (response) {
-      final Map<String, dynamic> data = response.isNotEmpty ? response[0] : {};
+    _socket!.emitWithAck(
+      'send_chat_message',
+      {'sessionId': _sessionId, 'text': text},
+      ack: (response) {
+        final Map<String, dynamic> data = response.isNotEmpty ? response[0] : {};
 
-      // Update state once we get the ACK
-      setState(() {
-        // Check for and add AI message directly from the ACK
-        if (data['success'] == true && data['aiReply'] != null) {
-          // Add AI reply using the correct format function
-          _messages.add(_formatSocketMessage(data['aiReply']));
-        } else if (data['success'] != true) {
-          // Handle message send failure (optional)
-          print('Message failed: ${data['error'] ?? 'Unknown error'}');
-          _addSystemMessage('Message failed to send.'); 
-        }
-        
-        // 3. ⚠️ FIX 2: Hide typing indicator regardless of success/failure upon receiving ACK
-        _isTyping = false;
-      });
-      _scrollToBottom();
-    });
+        if (!mounted) return;
+        setState(() {
+          if (data['success'] == true && data['aiReply'] != null && !widget.isPharmacistView) {
+            _appendMessageIfNew(_formatSocketMessage(data['aiReply']));
+          } else if (data['success'] != true) {
+            _messages.add({
+              'from': 'system',
+              'text': 'Message failed to send.',
+              'id': 'local-fail-${DateTime.now().millisecondsSinceEpoch}',
+            });
+          }
+          _isTyping = false;
+        });
+        _scrollToBottom();
+      },
+    );
   }
-
-
-  // The original commented out function is removed to prevent confusion.
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -221,72 +331,98 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  // --- UI ---
   Widget _buildBubble(Map<String, dynamic> msg) {
-    bool isUser = msg['from'] == 'user';
-    bool isPharmacist = msg['from'] == 'pharmacist';
-    bool isAI = msg['from'] == 'ai';
-    bool isSystem = msg['from'] == 'system';
-
-    Color navyBlue = const Color(0xFF001F3F);
-    Color white = Colors.white;
+    final isSystem = msg['from'] == 'system';
+    final isPharmacist = msg['from'] == 'pharmacist';
+    final isAI = msg['from'] == 'ai';
+    final isMine = msg['from'] == _myRole;
 
     if (isSystem) {
       return Center(
         child: Container(
           margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.blueGrey[50],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.blueGrey[100]!),
+            color: PharmacyUi.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: PharmacyUi.border),
           ),
           child: Text(
             msg['text'],
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.blueGrey[700], fontSize: 13, fontStyle: FontStyle.italic),
+            style: const TextStyle(
+              color: PharmacyUi.mutedText,
+              fontSize: 13,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ),
       );
     }
 
-    Color bubbleColor = isUser ? navyBlue : isPharmacist ? Colors.green[100]! : Colors.grey[200]!;
-    Color textColor = isUser ? white : Colors.black87;
-    String senderLabel = isPharmacist ? 'Pharmacist' : isAI ? 'AI' : '';
+    final senderLabel = isPharmacist
+        ? 'Pharmacist'
+        : isAI
+            ? 'AI Assistant'
+            : widget.isPharmacistView
+                ? 'Customer'
+                : '';
+
+    final Color bubbleColor = isMine
+        ? (widget.isPharmacistView ? PharmacyUi.teal : PharmacyUi.deepNavy)
+        : isPharmacist
+            ? PharmacyUi.mint
+            : isAI
+                ? const Color(0xFFE9EEF7)
+                : PharmacyUi.card;
+
+    final Color textColor = isMine ? PharmacyUi.card : PharmacyUi.deepNavy;
+    final Border? border = isMine
+        ? null
+        : Border.all(
+            color: isPharmacist ? PharmacyUi.teal.withValues(alpha: 0.18) : PharmacyUi.border,
+          );
 
     return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
-        crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          if (senderLabel.isNotEmpty && !isUser)
+          if (senderLabel.isNotEmpty && !isMine)
             Padding(
-              padding: const EdgeInsets.only(top: 8, left: 10, right: 10, bottom: 2),
+              padding: const EdgeInsets.only(top: 8, left: 12, right: 12, bottom: 2),
               child: Text(
                 senderLabel,
                 style: TextStyle(
                   fontSize: 12,
-                  color: isPharmacist ? Colors.green[700] : Colors.grey[600],
-                  fontWeight: FontWeight.bold,
+                  color: isPharmacist ? PharmacyUi.teal : PharmacyUi.mutedText,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           Container(
             margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 10),
             padding: const EdgeInsets.all(12),
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.76,
+            ),
             decoration: BoxDecoration(
               color: bubbleColor,
+              border: border,
               borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(14),
-                topRight: const Radius.circular(14),
-                bottomLeft: Radius.circular(isUser ? 14 : 0),
-                bottomRight: Radius.circular(isUser ? 0 : 14),
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: Radius.circular(isMine ? 18 : 4),
+                bottomRight: Radius.circular(isMine ? 4 : 18),
               ),
             ),
             child: Text(
               msg['text'],
-              style: TextStyle(color: textColor, fontSize: 15, height: 1.3),
+              style: TextStyle(
+                color: textColor,
+                fontSize: 15,
+                height: 1.35,
+              ),
             ),
           ),
         ],
@@ -294,126 +430,291 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _buildConversationHeader() {
+    late final String badge;
+    late final String title;
+    late final String subtitle;
+    late final IconData icon;
+    late final Color accent;
+
+    if (widget.isPharmacistView) {
+      badge = 'Live consultation';
+      title = 'Pharmacist support in progress';
+      subtitle =
+          'You are handling this consultation directly. Keep your responses clear, safe, and action-focused.';
+      icon = Icons.local_pharmacy_rounded;
+      accent = PharmacyUi.success;
+    } else if (_isAssignedToPharmacist) {
+      badge = 'Pharmacist assigned';
+      title = _pharmacistName != null
+          ? '$_pharmacistName is with you now'
+          : 'A pharmacist has joined your conversation';
+      subtitle =
+          'Your consultation has moved from AI support to a live pharmacist for more specific help.';
+      icon = Icons.medical_services_outlined;
+      accent = PharmacyUi.success;
+    } else if (_globalPharmacistOnline) {
+      badge = 'Pharmacist available';
+      title = 'AI support is active';
+      subtitle =
+          'A pharmacist is online and can join if your consultation needs escalation.';
+      icon = Icons.support_agent_outlined;
+      accent = PharmacyUi.warning;
+    } else {
+      badge = 'AI support';
+      title = 'Pharmacy assistant';
+      subtitle =
+          'You are currently chatting with the AI assistant while we monitor pharmacist availability.';
+      icon = Icons.smart_toy_outlined;
+      accent = PharmacyUi.deepNavy;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: PharmacyUi.panelDecoration(radius: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 48,
+            width: 48,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: accent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: PharmacyUi.deepNavy,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: PharmacyUi.mutedText,
+                    height: 1.45,
+                  ),
+                ),
+                if (_sessionId != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Session ${_sessionId!.length > 8 ? '${_sessionId!.substring(0, 8)}...' : _sessionId!}',
+                    style: const TextStyle(
+                      color: PharmacyUi.mutedText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: widget.isPharmacistView ? PharmacyUi.teal : PharmacyUi.deepNavy,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            widget.isPharmacistView
+                ? 'Sending your response...'
+                : _isAssignedToPharmacist
+                    ? 'Pharmacist is typing...'
+                    : 'AI is thinking...',
+            style: const TextStyle(color: PharmacyUi.mutedText),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSafetyBanner() {
+    final text = widget.isPharmacistView
+        ? 'Keep guidance professional and avoid requesting unnecessary personal information.'
+        : 'Please do not share highly sensitive personal or payment information in this chat.';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        decoration: BoxDecoration(
+          color: PharmacyUi.warning.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: PharmacyUi.warning.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: PharmacyUi.warning),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: const TextStyle(
+                  color: PharmacyUi.deepNavy,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComposer() {
+    final canSend =
+        _controller.text.trim().isNotEmpty && _socket?.connected == true && !_isBootstrapping;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                decoration: PharmacyUi.panelDecoration(radius: 22),
+                child: TextField(
+                  controller: _controller,
+                  maxLines: null,
+                  textInputAction: TextInputAction.newline,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: widget.isPharmacistView
+                        ? 'Write your guidance...'
+                        : 'Type a message...',
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: canSend ? _sendMessage : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: canSend ? PharmacyUi.deepNavy : PharmacyUi.border,
+                  shape: BoxShape.circle,
+                  boxShadow: canSend
+                      ? [
+                          BoxShadow(
+                            color: PharmacyUi.deepNavy.withValues(alpha: 0.25),
+                            blurRadius: 14,
+                            offset: const Offset(0, 6),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: const Icon(
+                  Icons.send_rounded,
+                  color: PharmacyUi.card,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _controller.removeListener(_handleComposerChanged);
+    _controller.dispose();
     _scrollController.dispose();
-    _socket.disconnect();
+    _socket?.disconnect();
+    _socket?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final navyBlue = const Color(0xFF001F3F);
-    String titleText;
-    if (_isAssignedToPharmacist) {
-      titleText = _pharmacistName != null ? 'Chat with $_pharmacistName 👩🏽‍⚕️' : 'Pharmacist Joined 👩🏽‍⚕️';
-    } else if (_globalPharmacistOnline) {
-      titleText = "Waiting for Pharmacist ⏳";
-    } else {
-      titleText = "AI Assistant 🤖";
-    }
-
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        backgroundColor: navyBlue,
-        title: Text(titleText, style: const TextStyle(color: Colors.white, fontSize: 18)),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
-              itemBuilder: (context, i) {
-                if (_isTyping && i == _messages.length) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
-                    child: Row(
-                      children: [
-                        SizedBox(
-                          width: 15,
-                          height: 15,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blueGrey),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          _isAssignedToPharmacist ? "Pharmacist is typing..." : "AI is thinking...",
-                          style: const TextStyle(color: Colors.black54),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return _buildBubble(_messages[i]);
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0, left: 16, right: 16),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(10),
+    return Theme(
+      data: PharmacyUi.theme,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.isPharmacistView ? 'Live Consultation' : 'Pharmacy Support'),
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                child: _buildConversationHeader(),
               ),
-              child: const Text(
-                "⚠️ Please do not share personal or sensitive information here.",
-                style: TextStyle(color: Colors.white, fontSize: 13),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              color: Colors.transparent,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(25),
-                        boxShadow: [
-                          BoxShadow(color: Colors.grey.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 2)),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _controller,
-                        maxLines: null,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          hintText: 'Type a message...',
-                          hintStyle: TextStyle(color: Colors.grey, fontSize: 15),
-                          border: InputBorder.none,
+              Expanded(
+                child: _isBootstrapping
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: PharmacyUi.deepNavy,
                         ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.only(top: 4, bottom: 12),
+                        itemCount: _messages.length + (_isTyping ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (_isTyping && index == _messages.length) {
+                            return _buildTypingIndicator();
+                          }
+                          return _buildBubble(_messages[index]);
+                        },
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _sendMessage,
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: navyBlue,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(color: navyBlue.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 3)),
-                        ],
-                      ),
-                      child: const Icon(Icons.send, color: Colors.white, size: 20),
-                    ),
-                  ),
-                ],
               ),
-            ),
+              _buildSafetyBanner(),
+              _buildComposer(),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

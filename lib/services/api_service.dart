@@ -1,9 +1,6 @@
 // lib/services/api_service.dart
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
-import 'package:mime/mime.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 

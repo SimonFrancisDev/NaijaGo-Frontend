@@ -6,12 +6,17 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../constants.dart';
 import '../../models/product.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/tech_glow_background.dart';
 import 'product_detail_screen.dart';
 
 // Defined custom colors for consistency and enchantment
-const Color deepNavyBlue = Color(0xFF000080); // Deep Navy Blue - primary for backgrounds, cards
-const Color greenYellow = Color(0xFFADFF2F); // Green Yellow - accent for important text, buttons
-const Color whiteBackground = Colors.white; // Explicitly defining white for main backgrounds, text on navy
+const Color deepNavyBlue = AppTheme.primaryNavy;
+const Color greenYellow = Color(0xFFF4F8FF);
+const Color whiteBackground = Colors.white;
+const Color secondaryBlack = AppTheme.secondaryBlack;
+const Color borderGrey = AppTheme.borderGrey;
+const Color mutedText = AppTheme.mutedText;
 
 class SavedItemsScreen extends StatefulWidget {
   const SavedItemsScreen({super.key});
@@ -62,19 +67,23 @@ class _SavedItemsScreenState extends State<SavedItemsScreen> {
         final List<dynamic> itemsJson = data['savedItems'];
 
         setState(() {
-          _savedProducts = itemsJson.map((json) => Product.fromJson(json)).toList();
+          _savedProducts = itemsJson
+              .map((json) => Product.fromJson(json))
+              .toList();
         });
       } else {
         final responseData = jsonDecode(response.body);
         setState(() {
-          _errorMessage = responseData['message'] ?? 'Failed to load saved products.';
+          _errorMessage =
+              responseData['message'] ?? 'Failed to load saved products.';
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred: $e. Check your network connection and backend server.';
+        _errorMessage =
+            'An error occurred: $e. Check your network connection and backend server.';
       });
-      print('Error fetching saved products: $e');
+      debugPrint('Error fetching saved products: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -87,165 +96,201 @@ class _SavedItemsScreenState extends State<SavedItemsScreen> {
     // Removed color scheme reference as we're using custom constants
     // final color = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: whiteBackground, // Main scaffold background is white
-      appBar: AppBar(
-        title: const Text(
-          'Saved Items',
-          style: TextStyle(color: greenYellow), // AppBar title green yellow
+    return TechGlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text(
+            'Saved Items',
+            style: TextStyle(color: greenYellow), // AppBar title green yellow
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          iconTheme: const IconThemeData(
+            color: greenYellow,
+          ), // AppBar icons green yellow
         ),
-        backgroundColor: deepNavyBlue, // AppBar background deep navy blue
-        elevation: 1,
-        iconTheme: const IconThemeData(color: greenYellow), // AppBar icons green yellow
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: deepNavyBlue))
-          : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline, color: deepNavyBlue, size: 50),
-                        const SizedBox(height: 10),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: deepNavyBlue, fontSize: 16),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: greenYellow))
+            : _errorMessage != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: greenYellow,
+                        size: 50,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: whiteBackground,
+                          fontSize: 16,
                         ),
-                        const SizedBox(height: 20),
-                        ElevatedButton(
-                          onPressed: _fetchSavedProducts,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: deepNavyBlue,
-                            foregroundColor: greenYellow,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _fetchSavedProducts,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: deepNavyBlue,
+                          foregroundColor: whiteBackground,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Text('Retry'),
                         ),
-                      ],
-                    ),
+                        child: const Text('Retry'),
+                      ),
+                    ],
                   ),
-                )
-              : _savedProducts.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.favorite_border, size: 80, color: deepNavyBlue.withOpacity(0.5)),
-                            const SizedBox(height: 20),
-                            Text(
-                              'No saved items yet!',
-                              style: TextStyle(color: deepNavyBlue, fontSize: 18),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'Browse products and add your favorites.',
-                              style: TextStyle(color: deepNavyBlue.withOpacity(0.7), fontSize: 16),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
+                ),
+              )
+            : _savedProducts.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.favorite_border,
+                        size: 80,
+                        color: greenYellow.withValues(alpha: 0.72),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'No saved items yet!',
+                        style: const TextStyle(
+                          color: whiteBackground,
+                          fontSize: 18,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                    )
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(16.0),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16.0,
-                        mainAxisSpacing: 16.0,
-                        childAspectRatio: 0.75,
+                      const SizedBox(height: 10),
+                      Text(
+                        'Browse products and add your favorites.',
+                        style: TextStyle(
+                          color: whiteBackground.withValues(alpha: 0.75),
+                          fontSize: 16,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      itemCount: _savedProducts.length,
-                      itemBuilder: (context, index) {
-                        final product = _savedProducts[index];
-                        final String heroTag = 'saved-product-image-${product.id}-$index';
+                    ],
+                  ),
+                ),
+              )
+            : GridView.builder(
+                padding: const EdgeInsets.all(16.0),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16.0,
+                  mainAxisSpacing: 16.0,
+                  childAspectRatio: 0.75,
+                ),
+                itemCount: _savedProducts.length,
+                itemBuilder: (context, index) {
+                  final product = _savedProducts[index];
+                  final String heroTag =
+                      'saved-product-image-${product.id}-$index';
 
-                        return GestureDetector(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => ProductDetailScreen(
-                                  product: product,
-                                  heroTag: heroTag,
-                                ),
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => ProductDetailScreen(
+                            product: product,
+                            heroTag: heroTag,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: const BorderSide(color: borderGrey),
+                      ),
+                      color: whiteBackground,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Hero(
+                            tag: heroTag,
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(15),
                               ),
-                            );
-                          },
-                          child: Card(
-                            elevation: 6, // More prominent elevation
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), // Rounded corners
-                            color: deepNavyBlue, // Card background deep navy blue
+                              child: Image.network(
+                                product.imageUrls.isNotEmpty
+                                    ? product.imageUrls[0]
+                                    : 'https://placehold.co/200x150/CCCCCC/000000?text=No+Image',
+                                height: 120,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    height: 120,
+                                    width: double.infinity,
+                                    color: Colors
+                                        .grey[800], // Darker color for no image state
+                                    child: Icon(
+                                      Icons.image_not_supported,
+                                      size: 50,
+                                      color: Colors.grey[600],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(
+                              12.0,
+                            ), // Increased padding
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Hero(
-                                  tag: heroTag,
-                                  child: ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                                    child: Image.network(
-                                      product.imageUrls.isNotEmpty
-                                          ? product.imageUrls[0]
-                                          : 'https://placehold.co/200x150/CCCCCC/000000?text=No+Image',
-                                      height: 120,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          height: 120,
-                                          width: double.infinity,
-                                          color: Colors.grey[800], // Darker color for no image state
-                                          child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey[600]),
-                                        );
-                                      },
-                                    ),
+                                Text(
+                                  product.name,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: secondaryBlack,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '₦${product.price.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: deepNavyBlue,
                                   ),
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.all(12.0), // Increased padding
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        product.name,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: greenYellow, // Product name in green yellow
-                                        ),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '₦${product.price.toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: whiteBackground, // Price in white
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Vendor: ${product.vendorBusinessName ?? 'N/A'}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: whiteBackground.withOpacity(0.7), // Vendor text in faded white
-                                        ),
-                                      ),
-                                    ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Vendor: ${product.vendorBusinessName ?? 'N/A'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: mutedText,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      },
+                        ],
+                      ),
                     ),
+                  );
+                },
+              ),
+      ),
     );
   }
 }

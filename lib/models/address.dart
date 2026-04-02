@@ -18,7 +18,7 @@ class Address extends Equatable {
   final double? latitude;
   final double? longitude;
 
-  Address({
+  const Address({
     this.id = '',
     required this.name,
     required this.phoneNumber,
